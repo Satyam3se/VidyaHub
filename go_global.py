@@ -5,6 +5,12 @@ import time
 import sys
 
 def start_global():
+    # Fix Windows console encoding for emojis
+    if sys.platform == 'win32':
+        import codecs
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
     print("\n" + "="*50)
     print("VIDYAHUB GLOBAL ORCHESTRATOR")
     print("="*50 + "\n")
