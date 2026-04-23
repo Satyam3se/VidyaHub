@@ -1,0 +1,31 @@
+{% extends 'main/base.html' %}
+
+{% block content %}
+<div class="dashboard-wrapper">
+    <div class="dashboard-header">
+        <h1 class="hero-title">Teacher <span class="text-gradient">Dashboard</span></h1>
+        <p class="hero-subtitle">Welcome back, {{ request.user.username }}! Your students are waiting for guidance.</p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card glass glass-glow">
+            <div class="stat-value">0</div>
+            <div class="stat-label">Active Students</div>
+        </div>
+        <div class="stat-card glass glass-glow">
+            <div class="stat-value">0</div>
+            <div class="stat-label">Course Reports</div>
+        </div>
+        <div class="stat-card glass glass-glow">
+            <div class="stat-value">{{ request.user.profile.subject }}</div>
+            <div class="stat-label">Subject Major</div>
+        </div>
+    </div>
+
+    <div class="mt-4 glass glass-glow" style="padding: 3rem; border-radius: 2rem; margin-top: 2rem; text-align: center;">
+        <h3>Set up your first AI Classroom.</h3>
+        <p class="text-muted">Generate interactive quizzes and roadmaps for your subject.</p>
+        <a href="#" class="btn btn-primary mt-2">Create Classroom</a>
+    </div>
+</div>
+{% endblock %}

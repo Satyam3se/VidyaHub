@@ -1,0 +1,265 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="game-page">
+    <div class="game-container glass">
+        <div class="game-header">
+            <div class="game-title">
+                <h1><i data-lucide="mic" class="title-icon"></i> Spelling Bee</h1>
+                <p>Class {{grade}} • Listen and spell!</p>
+            </div>
+            <div class="game-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Round</span>
+                    <span class="stat-value" id="round">1</span>/10
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Lives</span>
+                    <span class="stat-value" id="lives">3</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="start-screen" class="game-start">
+            <div class="start-content">
+                <div class="start-icon" style="background: linear-gradient(135deg, #10b981, #34d399);">
+                    <i data-lucide="mic"></i>
+                </div>
+                <h2>Ready to Spell?</h2>
+                <p>Listen to the word and type it correctly!</p>
+                <ul class="start-info">
+                    <li>🎯 20 XP per correct word</li>
+                    <li>🔊 Click to hear the word</li>
+                    <li>❤️ 3 lives to make mistakes</li>
+                </ul>
+                <button onclick="startSpellingGame()" class="start-button">
+                    <i data-lucide="play"></i> Start Game
+                </button>
+            </div>
+        </div>
+
+        <div id="game-area" style="display:none;" class="game-play">
+            <div class="word-area">
+                <button onclick="playWord()" class="hear-btn">
+                    <i data-lucide="volume-2"></i> Hear Word
+                </button>
+                <p class="hint" id="hint">Hint: --</p>
+            </div>
+            
+            <input type="text" id="spellinput" class="spell-input" placeholder="Type the word...">
+            <button onclick="checkSpelling()" class="submit-btn">Submit</button>
+        </div>
+
+        <div id="result-screen" class="result-modal">
+            <div class="result-content glass">
+                <div class="result-icon" style="background: linear-gradient(135deg, #10b981, #34d399);">
+                    <i data-lucide="trophy"></i>
+                </div>
+                <h2>Game Complete!</h2>
+                <div class="result-stats">
+                    <div class="result-stat">
+                        <span class="label">Words Spelled</span>
+                        <span class="value" id="correct">0</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="label">XP Earned</span>
+                        <span class="value highlight" id="final-xp">+0</span>
+                    </div>
+                </div>
+                <div class="result-actions">
+                    <button onclick="location.reload()" class="btn btn-primary">
+                        <i data-lucide="refresh-cw"></i> Play Again
+                    </button>
+                    <a href="{% url 'game_dashboard' %}" class="btn btn-outline">
+                        <i data-lucide="home"></i> Back to Games
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.game-page { padding: 100px 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.game-container { max-width: 600px; width: 100%; padding: 2rem; border-radius: 2rem; text-align: center; }
+.game-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; text-align: left; }
+.game-title h1 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; margin-bottom: 0.25rem; }
+.title-icon { color: #34d399; }
+.game-title p { color: #94a3b8; font-size: 0.9rem; }
+.game-stats { display: flex; gap: 1rem; }
+.stat-item { background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 0.75rem; text-align: center; }
+.stat-item .stat-label { display: block; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
+.stat-item .stat-value { font-size: 1.25rem; font-weight: 700; }
+
+.game-start { padding: 3rem 1rem; }
+.start-content { text-align: center; }
+.start-icon { width: 80px; height: 80px; background: linear-gradient(135deg, #10b981, #34d399); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+.start-icon i { width: 40px; height: 40px; color: #fff; }
+.start-content h2 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+.start-content > p { color: #94a3b8; margin-bottom: 1.5rem; }
+.start-info { list-style: none; padding: 0; margin-bottom: 2rem; }
+.start-info li { padding: 0.5rem; color: #cbd5e1; }
+.start-button { display: inline-flex; align-items: center; gap: 0.5rem; padding: 1rem 2.5rem; font-size: 1.1rem; font-weight: 600; background: linear-gradient(135deg, #10b981, #34d399); border: none; border-radius: 1rem; color: #fff; cursor: pointer; transition: all 0.3s ease; }
+.start-button:hover { transform: scale(1.05); box-shadow: 0 8px 24px rgba(16,185,129,0.4); }
+
+.game-play { padding: 1rem 0; }
+.word-area { margin: 2rem 0; }
+.hear-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 1rem 2rem; font-size: 1rem; background: linear-gradient(135deg, #10b981, #34d399); border: none; border-radius: 2rem; color: #fff; cursor: pointer; }
+.hint { color: #fbbf24; margin-top: 1rem; font-size: 1rem; }
+.spell-input { width: 100%; max-width: 300px; padding: 1rem; font-size: 1.25rem; margin-top: 1.5rem; background: rgba(255,255,255,0.05); border: 2px solid var(--glass-border); border-radius: 1rem; color: #fff; text-align: center; text-transform: uppercase; }
+.spell-input:focus { outline: none; border-color: #10b981; }
+.submit-btn { display: block; margin: 1rem auto; padding: 0.75rem 2rem; font-size: 1rem; font-weight: 600; background: #6366f1; border: none; border-radius: 1rem; color: #fff; cursor: pointer; }
+
+.result-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 100; }
+.result-modal.show { display: flex; }
+.result-content { padding: 3rem; border-radius: 2rem; text-align: center; max-width: 400px; }
+.result-icon { width: 70px; height: 70px; background: linear-gradient(135deg, #10b981, #34d399); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+.result-icon i { width: 35px; height: 35px; color: #fff; }
+.result-content h2 { font-size: 2rem; margin-bottom: 1.5rem; }
+.result-stats { display: flex; justify-content: center; gap: 2rem; margin-bottom: 2rem; }
+.result-stat { text-align: center; }
+.result-stat .label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem; }
+.result-stat .value { font-size: 1.75rem; font-weight: 700; }
+.result-stat .value.highlight { color: #34d399; }
+.result-actions { display: flex; flex-direction: column; gap: 0.75rem; }
+.result-actions .btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.result-actions .btn i { width: 18px; height: 18px; }
+</style>
+
+<script>
+var classLevel = {{ grade }};
+
+var wordsByClass = {
+    1: [
+        {word: "CAT", hint: "A furry pet"}, {word: "DOG", hint: " Man's best friend"}, {word: "SUN", hint: "It shines in sky"},
+        {word: "HAT", hint: "Wear on head"}, {word: "BAT", hint: "Used in cricket"}, {word: "BED", hint: "Sleep on it"},
+        {word: "RED", hint: "Color of blood"}, {word: "PEN", hint: "Write with it"}, {word: "BOX", hint: "Hold things"}, {word: "FOX", hint: "An animal"}
+    ],
+    2: [
+        {word: "APPLE", hint: "A red fruit"}, {word: "HOUSE", hint: "Where we live"}, {word: "MOUSE", hint: "Small animal"},
+        {word: "WATER", hint: "Drink to survive"}, {word: "BREAD", hint: "Eat for breakfast"}, {word: "TIGER", hint: "A big cat"},
+        {word: "SHOES", hint: "Wear on feet"}, {word: "GREEN", hint: "Color of grass"}, {word: "CLOWN", hint: "Makes us laugh"}, {word: "CLOUD", hint: "In the sky"}
+    ],
+    3: [
+        {word: "ELEPHANT", hint: "Largest land animal"}, {word: "GIRAFFE", hint: "Long neck animal"}, {word: "BUTTERFLY", hint: "Beautiful insect"},
+        {word: "PINEAPPLE", hint: "Tropical fruit"}, {word: "UMBRELLA", hint: "Rain protector"}, {word: "CRYSTAL", hint: "Sparkly stone"},
+        {word: "OCTOPUS", hint: "Many legs"}, {word: "DOLPHIN", hint: "Smart sea animal"}, {word: "MONKEY", hint: "Climbs trees"}, {word: "ORANGE", hint: "Citrus fruit"}
+    ],
+    4: [
+        {word: "MAGNET", hint: "Attracts metal"}, {word: "ISLAND", hint: "Land in water"}, {word: "CAMERA", hint: "Takes photos"},
+        {word: "PLANET", hint: "Orbits the sun"}, {word: "BRIDGE", hint: "Cross water"}, {word: "CASTLE", hint: "Old king's home"},
+        {word: "FOREST", hint: "Many trees"}, {word: "ROCKET", hint: "Goes to space"}, {word: "PALACE", hint: "King's house"}, {word: "VENTURE", hint: "Daring act"}
+    ],
+    5: [
+        {word: "PHOTOSYNTHESIS", hint: "How plants make food"}, {word: "GRAVITATION", hint: "Force that pulls down"}, {word: "MULTIPLICATION", hint: "Repeated addition"},
+        {word: "APPARATUS", hint: "Equipment setup"}, {word: "BIBLIOGRAPHY", hint: "List of books"}, {word: "CHRONOLOGICAL", hint: "In time order"},
+        {word: "ELECTRICITY", hint: "Power for lights"}, {word: "ATMOSPHERE", hint: "Air around Earth"}, {word: "PERIMETER", hint: "Outside edge"}, {word: "VOCABULARY", hint: "List of words"}
+    ],
+    6: [
+        {word: "DEMOCRACY", hint: "Government by people"}, {word: "GOVERNOR", hint: "State head"}, {word: "PARLIAMENT", hint: "Law makers"},
+        {word: "RENAISSANCE", hint: "Rebirth period"}, {word: "REPRODUCTION", hint: "Creating life"}, {word: "EVAPORATION", hint: "Water to vapor"},
+        {word: "METAMORPHOSIS", hint: "Transformation"}, {word: "ARCHIPELAGO", hint: "Group of islands"}, {word: "ECOSYSTEM", hint: "Environment"}, {word: "METEOROLOGY", hint: "Study of weather"}
+    ],
+    7: [
+        {word: "METEORITE", hint: "Space rock"}, {word: "ATMOSPHERE", hint: "Air layer"}, {word: "REVOLUTION", hint: "Full rotation"},
+        {word: "EVAPORATION", hint: "Liquid to gas"}, {word: "HABITATION", hint: "Living place"}, {word: "AFFECTION", hint: "Fond feeling"},
+        {word: "PROJECTILE", hint: "Thrown object"}, {word: "OPTICAL", hint: "Related to light"}, {word: "PRACTICAL", hint: "Useful"}, {word: "FRACTIONAL", hint: "Like a fraction"}
+    ],
+    8: [
+        {word: "PHOTOSYNTHESIS", hint: "Food making in plants"}, {word: "CHLOROPHYLL", hint: "Green pigment"}, {word: "OXYTOCIN", hint: "Love hormone"},
+        {word: "EPIDERMIS", hint: "Outer skin layer"}, {word: "CHROMOSOME", hint: "Genetic material"}, {word: "MITOCHONDRIA", hint: "Powerhouse of cell"},
+        {word: "PROKARYOTE", hint: "Simple cell"}, {word: "PROBABILITY", hint: "Likelihood"}, {word: "PERMUTATION", hint: "Arrangement"}, {word: "HYPERBOLIC", hint: "Exaggerated"}
+    ],
+    9: [
+        {word: "ATMOSPHERE", hint: "Air around Earth"}, {word: "BIOSPHERE", hint: "Life zone"}, {word: "GEOSPHERE", hint: "Earth's layer"},
+        {word: "HYDROSPHERE", hint: "Water zone"}, {word: "ECOSPHERE", hint: "Environment"}, {word: "CHRONOLOGY", hint: "Time study"},
+        {word: "PSYCHOLOGY", hint: "Mind study"}, {word: "PHILOSOPHY", hint: "Wisdom love"}, {word: "ASTRONOMY", hint: "Star study"}, {word: "TECHNOLOGY", hint: "Practical science"}
+    ],
+    10: [
+        {word: "PHOTOSYNTHESIS", hint: "Light food making"}, {word: "CHLOROPHYLL", hint: "Green leaf color"}, {word: "OXYGENATION", hint: "Adding oxygen"},
+        {word: "FERMENTATION", hint: "Sugar breakdown"}, {word: "PUTREFACTION", hint: "Rotting"}, {word: "DISSOLUTION", hint: "Dissolving"},
+        {word: "POLLINATION", hint: "Flower reproduction"}, {word: "GERMINATION", hint: "Seed growth"}, {word: "REPRODUCTION", hint: "Creating life"}, {word: "INCINERATION", hint: "Burning up"}
+    ]
+};
+
+var words = wordsByClass[classLevel] || wordsByClass[1];
+var currentIndex = 0;
+var currentWord = {};
+var score = 0;
+var correct = 0;
+var lives = 3;
+
+function startSpellingGame() {
+    words = words.slice().sort(function() { return Math.random() - 0.5; }).slice(0, 10);
+    currentIndex = 0;
+    score = 0;
+    correct = 0;
+    lives = 3;
+    
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('game-area').style.display = 'block';
+    document.getElementById('result-screen').classList.remove('show');
+    
+    loadWord();
+}
+
+function loadWord() {
+    if (currentIndex >= words.length || lives <= 0) {
+        endGame();
+        return;
+    }
+    
+    currentWord = words[currentIndex];
+    document.getElementById('hint').textContent = 'Hint: ' + currentWord.hint;
+    document.getElementById('spellinput').value = '';
+    document.getElementById('spellinput').focus();
+    document.getElementById('round').textContent = (currentIndex + 1);
+}
+
+function playWord() {
+    if ('speechSynthesis' in window) {
+        var utt = new SpeechSynthesisUtterance(currentWord.word);
+        utt.rate = 0.7;
+        window.speechSynthesis.speak(utt);
+    }
+}
+
+function checkSpelling() {
+    var guess = document.getElementById('spellinput').value.toUpperCase().trim();
+    if (!guess) return;
+    
+    if (guess === currentWord.word) {
+        correct++;
+        score += 20;
+    } else {
+        lives--;
+    }
+    
+    document.getElementById('score').textContent = score;
+    document.getElementById('lives').textContent = lives;
+    currentIndex++;
+    
+    setTimeout(loadWord, 500);
+}
+
+function endGame() {
+    var xp = correct * 15;
+    document.getElementById('correct').textContent = correct;
+    document.getElementById('final-xp').textContent = '+' + xp + ' XP';
+    document.getElementById('result-screen').classList.add('show');
+}
+
+document.getElementById('spellinput').addEventListener('keyup', function(e) {
+    if (e.key === 'Enter') checkSpelling();
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.lucide) lucide.createIcons();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,319 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<section class="duel-arena">
+    <div class="container">
+        <div class="duel-header glass animate-down">
+            <div class="chapter-info">
+                <span class="badge badge-primary">Concept Duel</span>
+                <h2>{{ chapter.name }}</h2>
+                <p class="text-muted">{{ chapter.subject.name }} &bull; {{ chapter.subject.grade.name }}</p>
+                {% if question_source == 'subject' %}
+                <span class="badge badge-warning mt-2" style="font-size: 0.7rem;">Questions from {{ chapter.subject.name }} chapter</span>
+                {% endif %}
+            </div>
+            <div class="duel-timer">
+                <div class="timer-circle">
+                    <span id="time-left">15</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="battle-field mt-4">
+            <!-- Player Side -->
+            <div class="fighter player-side animate-left">
+                <div class="fighter-card glass">
+                    <div class="fighter-avatar">
+                        <i data-lucide="user"></i>
+                    </div>
+                    <div class="fighter-info">
+                        <h3>{{ request.user.username }}</h3>
+                        <div class="hp-bar-container">
+                            <div id="player-hp" class="hp-fill" style="width: 100%;"></div>
+                        </div>
+                        <span class="hp-text">HP: <span id="player-hp-val">100</span>/100</span>
+                    </div>
+                </div>
+                <div id="player-sprite" class="fighter-sprite">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ request.user.username }}" alt="Player">
+                </div>
+            </div>
+
+            <!-- VS Divider -->
+            <div class="vs-divider">
+                <span>VS</span>
+            </div>
+
+            <!-- AI Side -->
+            <div class="fighter ai-side animate-right">
+                <div class="fighter-card glass">
+                    <div class="fighter-avatar ai">
+                        <i data-lucide="sparkles"></i>
+                    </div>
+                    <div class="fighter-info">
+                        <h3>Vidya AI</h3>
+                        <div class="hp-bar-container">
+                            <div id="ai-hp" class="hp-fill ai" style="width: 100%;"></div>
+                        </div>
+                        <span class="hp-text">HP: <span id="ai-hp-val">100</span>/100</span>
+                    </div>
+                </div>
+                <div id="ai-sprite" class="fighter-sprite">
+                    <div class="vidya-ai-orb">
+                        <i data-lucide="brain-circuit"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question Area -->
+        <div id="question-area" class="question-container glass animate-up mt-4">
+            <div class="progress-steps" id="progress-dots">
+                <!-- Dots will be generated here -->
+            </div>
+            <div class="question-box p-4">
+                <h3 id="question-text">Loading battle...</h3>
+                <div id="options-grid" class="options-grid mt-4">
+                    <!-- Options will be generated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Victory/Defeat Screen (Hidden) -->
+        <div id="result-screen" class="result-overlay hidden glass">
+            <div class="result-content animate-scale">
+                <div id="result-icon"></div>
+                <h1 id="result-title">Victory!</h1>
+                <p id="result-msg">You have mastered this concept.</p>
+                <div class="reward-box glass mt-4">
+                    <div class="reward-item">
+                        <i data-lucide="zap" class="text-warning"></i>
+                        <span id="xp-reward">+50 XP</span>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <a href="{% url 'game_dashboard' %}" class="btn btn-primary glass-glow">Return to Dashboard</a>
+                    <button onclick="location.reload()" class="btn btn-secondary glass ms-2">Rematch</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.badge { padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.badge-primary { background: var(--primary); color: white; }
+.badge-warning { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+.duel-arena { padding: 8rem 0 4rem; min-height: 100vh; background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 70%); }
+
+.duel-header { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2.5rem; border-radius: 1.5rem; }
+.timer-circle { width: 60px; height: 60px; border: 4px solid var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 900; color: var(--primary); box-shadow: 0 0 15px rgba(99,102,241,0.3); }
+
+.battle-field { display: grid; grid-template-columns: 1fr 100px 1fr; gap: 2rem; align-items: center; min-height: 250px; }
+.fighter { display: flex; flex-direction: column; gap: 1.5rem; }
+.fighter-card { display: flex; gap: 1rem; padding: 1rem; border-radius: 1rem; }
+.fighter-avatar { width: 48px; height: 48px; background: rgba(255,255,255,0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.fighter-avatar.ai { background: linear-gradient(135deg, var(--primary), #818cf8); color: white; }
+.fighter-info { flex-grow: 1; }
+.fighter-info h3 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+
+.hp-bar-container { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-bottom: 4px; }
+.hp-fill { height: 100%; background: #ef4444; width: 100%; transition: width 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.hp-fill.ai { background: #10b981; }
+.hp-text { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); }
+
+.vs-divider { display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: 900; font-style: italic; color: rgba(255,255,255,0.1); }
+
+.fighter-sprite { height: 120px; display: flex; align-items: center; justify-content: center; }
+.fighter-sprite img { height: 100px; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3)); }
+.vidya-ai-orb { width: 80px; height: 80px; background: radial-gradient(circle, var(--primary), #4f46e5); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 0 30px rgba(99,102,241,0.6); animation: float 3s infinite ease-in-out; }
+.vidya-ai-orb i { width: 40px; height: 40px; }
+
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+
+.question-container { border-radius: 2rem; overflow: hidden; }
+.progress-steps { display: flex; gap: 8px; padding: 1rem 2.5rem; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05); }
+.step-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.1); }
+.step-dot.active { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+.step-dot.correct { background: #10b981; }
+.step-dot.wrong { background: #ef4444; }
+
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.option-btn { padding: 1.25rem; border-radius: 1rem; text-align: left; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; font-weight: 600; }
+.option-btn:hover { background: rgba(255,255,255,0.1); transform: translateX(5px); }
+.option-btn.correct { background: rgba(16, 185, 129, 0.2) !important; border-color: #10b981 !important; color: #34d399; }
+.option-btn.wrong { background: rgba(239, 68, 68, 0.2) !important; border-color: #ef4444 !important; color: #f87171; }
+
+.result-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(15, 23, 42, 0.95); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
+.result-content { text-align: center; max-width: 400px; padding: 3rem; }
+
+.attack-shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .battle-field { grid-template-columns: 1fr; gap: 1rem; }
+    .vs-divider { display: none; }
+    .options-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+{% block extra_js %}
+<script>
+    const questions = {{ questions_json|safe }};
+    let currentIdx = 0;
+    let playerHP = 100;
+    let aiHP = 100;
+    let timer = null;
+    let timeLeft = 15;
+
+    function initGame() {
+        // Create dots
+        const dotsContainer = document.getElementById('progress-dots');
+        questions.forEach((_, i) => {
+            const dot = document.createElement('div');
+            dot.className = 'step-dot';
+            dot.id = `dot-${i}`;
+            dotsContainer.appendChild(dot);
+        });
+        showQuestion();
+    }
+
+    function showQuestion() {
+        if (currentIdx >= questions.length || playerHP <= 0 || aiHP <= 0) {
+            endGame();
+            return;
+        }
+
+        const q = questions[currentIdx];
+        
+        // Handle no questions case
+        if (q.id === 0) {
+            document.getElementById('question-text').textContent = q.question;
+            const grid = document.getElementById('options-grid');
+            grid.innerHTML = '<p class="text-center text-muted">This chapter needs questions added. Check back later!</p>';
+            document.getElementById('time-left').textContent = '--';
+            endGame();
+            return;
+        }
+        
+        document.getElementById('question-text').textContent = q.question;
+        document.getElementById(`dot-${currentIdx}`).classList.add('active');
+
+        const grid = document.getElementById('options-grid');
+        grid.innerHTML = '';
+        q.options.forEach((opt, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn animate-up';
+            btn.style.animationDelay = `${i * 0.1}s`;
+            btn.textContent = opt;
+            btn.onclick = () => handleAnswer(i);
+            grid.appendChild(btn);
+        });
+
+        startTimer();
+    }
+
+    function startTimer() {
+        clearInterval(timer);
+        timeLeft = 15;
+        document.getElementById('time-left').textContent = timeLeft;
+        timer = setInterval(() => {
+            timeLeft--;
+            document.getElementById('time-left').textContent = timeLeft;
+            if (timeLeft <= 0) {
+                handleAnswer(-1); // Timeout as wrong
+            }
+        }, 1000);
+    }
+
+    function handleAnswer(choiceIdx) {
+        clearInterval(timer);
+        const q = questions[currentIdx];
+        const buttons = document.querySelectorAll('.option-btn');
+        const dots = document.getElementById(`dot-${currentIdx}`);
+
+        let isCorrect = (choiceIdx === q.correct);
+
+        // Visual feedback
+        if (choiceIdx !== -1) {
+            buttons[choiceIdx].classList.add(isCorrect ? 'correct' : 'wrong');
+        }
+        if (!isCorrect) {
+            buttons[q.correct].classList.add('correct');
+        }
+
+        // Battle Effects
+        if (isCorrect) {
+            aiHP -= 15;
+            dots.classList.add('correct');
+            animateAttack('player');
+        } else {
+            playerHP -= 20;
+            dots.classList.add('wrong');
+            animateAttack('ai');
+        }
+
+        updateHP();
+
+        setTimeout(() => {
+            currentIdx++;
+            showQuestion();
+        }, 1500);
+    }
+
+    function updateHP() {
+        playerHP = Math.max(0, playerHP);
+        aiHP = Math.max(0, aiHP);
+        
+        document.getElementById('player-hp').style.width = playerHP + '%';
+        document.getElementById('player-hp-val').textContent = playerHP;
+        
+        document.getElementById('ai-hp').style.width = aiHP + '%';
+        document.getElementById('ai-hp-val').textContent = aiHP;
+    }
+
+    function animateAttack(attacker) {
+        const targetId = (attacker === 'player') ? 'ai-sprite' : 'player-sprite';
+        const target = document.getElementById(targetId);
+        target.classList.add('attack-shake');
+        setTimeout(() => target.classList.remove('attack-shake'), 500);
+    }
+
+    function endGame() {
+        const overlay = document.getElementById('result-screen');
+        const title = document.getElementById('result-title');
+        const msg = document.getElementById('result-msg');
+        const icon = document.getElementById('result-icon');
+        
+        overlay.classList.remove('hidden');
+
+        if (aiHP <= 0 || (currentIdx >= questions.length && aiHP < playerHP)) {
+            title.textContent = "Victory!";
+            msg.textContent = "You defeated Vidya AI and mastered the concepts!";
+            icon.innerHTML = '<i data-lucide="crown" style="width:64px;height:64px;color:#fbbf24;"></i>';
+            submitResults(50); // XP reward
+        } else {
+            title.textContent = "Defeat";
+            title.style.color = "#ef4444";
+            msg.textContent = "Vidya AI proved to be a tough opponent. Keep studying!";
+            icon.innerHTML = '<i data-lucide="frown" style="width:64px;height:64px;color:#ef4444;"></i>';
+            document.getElementById('xp-reward').textContent = "+5 XP for trying";
+        }
+        lucide.createIcons();
+    }
+
+    function submitResults(xp) {
+        fetch('/api/game/results/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ xp: xp, game: 'concept_duel', chapter_id: {{ chapter.id }} })
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', initGame);
+</script>
+{% endblock %}
+{% endblock %}

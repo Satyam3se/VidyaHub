@@ -1,0 +1,178 @@
+{% extends 'main/base.html' %}
+
+{% block content %}
+<section class="boss-arena">
+    <div class="arena-overlay"></div>
+    <div class="container relative">
+        <div class="boss-header animate-down">
+            <div class="boss-meta">
+                <span class="warning-tag">BOSS BATTLE</span>
+                <h1>Guardian of {{ subject.name }}</h1>
+            </div>
+            <div class="boss-hp-container">
+                <div class="hp-info"><span>BOSS HP</span> <span id="boss-hp-val">100%</span></div>
+                <div class="hp-bar"><div id="hp-fill" class="fill" style="width: 100%"></div></div>
+            </div>
+        </div>
+
+        <div id="quiz-wrapper" class="glass-dark animate-scale">
+            <div id="question-box">
+                <div class="q-header">
+                    <span id="q-counter">Question 1/{{ questions|length }}</span>
+                    <div id="boss-timer" class="timer">30s</div>
+                </div>
+                <h2 id="question-text" class="mt-3"></h2>
+                
+                <div id="options-grid" class="mt-4">
+                    <!-- Options buttons will be here -->
+                </div>
+            </div>
+
+            <!-- Victory Screen (hidden by default) -->
+            <div id="victory-screen" style="display:none;" class="text-center py-5">
+                <div class="crown-icon animate-bounce"><i data-lucide="crown"></i></div>
+                <h1 class="victory-title">VICTORY!</h1>
+                <p id="victory-msg" class="lead text-muted"></p>
+                <div class="reward-box glass mt-4">
+                    <p>REWARD EARNED</p>
+                    <h2 id="xp-reward">+0 XP</h2>
+                </div>
+                <a href="{% url 'game_dashboard' %}" class="btn btn-primary mt-4 px-5">Continue Journey</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.boss-arena { min-height: 100vh; padding: 10rem 0 5rem; background: #020617; position: relative; overflow: hidden; color: #fff; }
+.arena-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, rgba(138, 75, 255, 0.15) 0%, transparent 70%); }
+.boss-header { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 4rem; }
+.warning-tag { background: #ef4444; color: #fff; padding: 0.25rem 1rem; border-radius: 5px; font-weight: 800; font-size: 0.75rem; letter-spacing: 2px; margin-bottom: 1rem; display: inline-block; animation: pulse 2s infinite; }
+.boss-hp-container { width: 100%; max-width: 600px; margin-top: 1.5rem; }
+.hp-info { display: flex; justify-content: space-between; font-weight: 800; font-size: 0.8rem; margin-bottom: 0.5rem; }
+.hp-bar { height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; border: 1px solid rgba(239, 68, 68, 0.3); }
+.hp-bar .fill { height: 100%; background: linear-gradient(90deg, #ef4444, #f87171); box-shadow: 0 0 20px #ef4444; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+
+.glass-dark { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); border-radius: 2rem; padding: 3rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+.timer { background: rgba(255,255,255,0.1); padding: 0.5rem 1.5rem; border-radius: 1rem; font-weight: 800; color: #fbbf24; }
+
+.option-btn { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 1.5rem; padding: 1.5rem; text-align: left; transition: 0.3s; color: #fff; width: 100%; margin-bottom: 1rem; cursor: pointer; }
+.option-btn:hover { background: rgba(138, 75, 255, 0.1); border-color: rgba(138, 75, 255, 0.4); transform: translateX(10px); }
+.option-btn.correct { background: rgba(34, 197, 94, 0.2); border-color: #22c55e; }
+.option-btn.wrong { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; }
+
+.victory-title { font-size: 5rem; font-weight: 900; background: linear-gradient(to bottom, #fbbf24, #d97706); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 1rem 0; }
+.crown-icon i { width: 80px; height: 80px; color: #fbbf24; filter: drop-shadow(0 0 15px rgba(251, 191, 36, 0.5)); }
+
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+</style>
+
+<script>
+    const questions = [
+        {% for q in questions %}
+        {
+            id: {{ q.id }},
+            question: "{{ q.question_text|escapejs }}",
+            options: ["{{ q.option_a|escapejs }}", "{{ q.option_b|escapejs }}", "{{ q.option_c|escapejs }}", "{{ q.option_d|escapejs }}"],
+            correct: "{{ q.correct_option }}"
+        },
+        {% endfor %}
+    ];
+
+    let currentIdx = 0;
+    let score = 0;
+    let timeLeft = 30;
+    let timerInterval;
+
+    function startTimer() {
+        clearInterval(timerInterval);
+        timeLeft = 30;
+        document.getElementById('boss-timer').innerText = timeLeft + 's';
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            document.getElementById('boss-timer').innerText = timeLeft + 's';
+            if (timeLeft <= 0) {
+                handleAnswer(null); // Time out
+            }
+        }, 1000);
+    }
+
+    function loadQuestion() {
+        if (currentIdx >= questions.length) {
+            finishBattle();
+            return;
+        }
+
+        startTimer();
+        const q = questions[currentIdx];
+        document.getElementById('q-counter').innerText = `Question ${currentIdx + 1}/${questions.length}`;
+        document.getElementById('question-text').innerText = q.question;
+        
+        const grid = document.getElementById('options-grid');
+        grid.innerHTML = '';
+        
+        ['A', 'B', 'C', 'D'].forEach((letter, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = q.options[i];
+            btn.onclick = () => handleAnswer(letter);
+            grid.appendChild(btn);
+        });
+    }
+
+    function handleAnswer(choice) {
+        clearInterval(timerInterval);
+        const q = questions[currentIdx];
+        const buttons = document.querySelectorAll('.option-btn');
+        let correct = false;
+
+        buttons.forEach(btn => {
+            if (btn.innerText === q.options['ABCD'.indexOf(q.correct)]) {
+                btn.classList.add('correct');
+            }
+            btn.disabled = true;
+        });
+
+        if (choice && choice === q.correct) {
+            score++;
+            correct = true;
+            // Damage Boss HP
+            let hp = 100 - (score * (100 / questions.length));
+            document.getElementById('hp-fill').style.width = hp + '%';
+            document.getElementById('boss-hp-val').innerText = Math.round(hp) + '%';
+        } else {
+            // Flash screen red or something?
+        }
+
+        setTimeout(() => {
+            currentIdx++;
+            loadQuestion();
+        }, 1500);
+    }
+
+    function finishBattle() {
+        document.getElementById('question-box').style.display = 'none';
+        document.getElementById('victory-screen').style.display = 'block';
+        
+        fetch("{% url 'boss_battle_submit' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                subject_id: {{ subject.id }},
+                score: score
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('victory-msg').innerText = data.victory_msg;
+            document.getElementById('xp-reward').innerText = `+${data.xp_earned} XP`;
+            lucide.createIcons();
+        });
+    }
+
+    window.onload = loadQuestion;
+</script>
+{% endblock %}

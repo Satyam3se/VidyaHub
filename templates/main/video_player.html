@@ -1,0 +1,735 @@
+{% extends 'main/base.html' %}
+
+{% block content %}
+<section class="player-section">
+    <div class="player-container">
+        <!-- Breadcrumbs -->
+        <div class="player-top">
+            <nav class="breadcrumb">
+                <a href="{% url 'course_index' %}">Classes</a> / 
+                <a href="{% url 'grade_detail' grade.slug %}">{{ grade.name }}</a> / 
+                <a href="{% url 'subject_detail' grade.slug subject.slug %}">{{ subject.name }}</a>
+            </nav>
+            <h1 class="player-title">{{ chapter.name }}</h1>
+        </div>
+
+        <div class="player-grid">
+            <div class="main-content">
+                <div class="tabs-header glass" style="margin-bottom: 2rem; display: flex; gap: 1rem; padding: 1rem; flex-wrap: wrap;">
+                    <button id="btn-video" class="tab-btn active" onclick="switchTab('video')">
+                        <i data-lucide="play-circle"></i> Video Lesson
+                    </button>
+                    {% if chapter_quiz_count > 0 %}
+                    <button id="btn-quiz" class="tab-btn" onclick="switchTab('quiz')">
+                        <i data-lucide="pen-line"></i> Chapter Quiz <span class="quiz-count-badge">{{ chapter_quiz_count }}Q</span>
+                    </button>
+                    {% endif %}
+                    <button id="btn-notes" class="tab-btn" onclick="switchTab('notes')">
+                        <i data-lucide="file-text"></i> Chapter Notes
+                    </button>
+                    <a href="{% url 'concept_duel' chapter.id %}" class="tab-btn duel-btn" style="text-decoration: none;">
+                        <i data-lucide="swords" style="color: #fbbf24;"></i> <span style="color: #fbbf24;">Duel</span>
+                    </a>
+                </div>
+
+                <!-- Video Tab -->
+                <div id="tab-video" class="tab-pane active active-pane">
+                <div class="video-wrapper glass">
+                    {% if current_video %}
+                    <iframe 
+                        src="https://www.youtube.com/embed/{{ current_video.youtube_id }}?rel=0&modestbranding=1&autoplay=0" 
+                        title="{{ current_video.title }}" 
+                        frameborder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allowfullscreen>
+                    </iframe>
+                    {% else %}
+                    <div class="no-video-state">
+                        <i data-lucide="video-off"></i>
+                        <p>No video available for this chapter yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="video-info glass">
+                    <h2>{{ current_video.title|default:chapter.name }}</h2>
+                    {% if current_video.description %}
+                    <p>{{ current_video.description }}</p>
+                    {% else %}
+                    <p>No description provided for this lesson. Join us as we dive deep into this topic!</p>
+                    {% endif %}
+                    
+                    <div class="lesson-actions">
+                        {% if prev_chapter %}
+                        <a href="{% url 'chapter_detail' grade.slug subject.slug prev_chapter.slug %}" class="btn btn-secondary">
+                            <i data-lucide="skip-back" class="me-2"></i> Previous Chapter
+                        </a>
+                        {% endif %}
+                        
+                        <!-- AI Stuck Button -->
+                        <button class="btn btn-secondary ai-stuck-btn glass" onclick="triggerEmbeddedAI('I am stuck on the chapter: {{ chapter.name }} ({{ subject.name }}). Can you explain the core concepts of this lesson to me?')" style="border: 2px solid rgba(138, 75, 255, 0.5); color: #fff;">
+                            <i data-lucide="brain-circuit" class="me-2" style="color: #8A4BFF;"></i> Stuck? Get Help
+                        </button>
+                        
+                        {% if next_chapter %}
+                        <a href="{% url 'chapter_detail' grade.slug subject.slug next_chapter.slug %}" class="btn btn-primary">
+                            Next Chapter <i data-lucide="skip-forward" class="ms-2"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+
+                    {% if chapter_quiz_count > 0 %}
+                    <!-- Chapter Quiz CTA Banner -->
+                    <div class="chap-quiz-banner glass">
+                        <div class="chap-quiz-info">
+                            <div class="chap-quiz-icon">
+                                <i data-lucide="pen-line"></i>
+                            </div>
+                            <div>
+                                <h3>Test Your Knowledge!</h3>
+                                <p class="text-muted">{{ chapter_quiz_count }} questions &bull; 15 XP each &bull; +30 XP perfect score</p>
+                            </div>
+                        </div>
+                        <a href="{% url 'chapter_quiz' chapter.id %}" class="btn btn-primary glass-glow">
+                            <i data-lucide="play" class="me-2"></i> Take Chapter Quiz
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Embedded AI Assistant Section -->
+                <div id="embedded-ai-section" class="embedded-ai-section glass hidden">
+                    <div class="ai-chat-header">
+                        <div class="ai-avatar">
+                            <i data-lucide="sparkles"></i>
+                        </div>
+                        <div class="ai-header-info">
+                            <h3>Vidya AI Tutor</h3>
+                            <span>Connected | Ready to help</span>
+                        </div>
+                    </div>
+                    <div id="embedded-ai-messages" class="ai-messages" style="max-height: 400px; min-height: 200px;">
+                        <div class="message ai-message">
+                            Hii! I'm your Vidya AI tutor. I've noticed you're exploring <strong>{{ chapter.name }}</strong>. How can I help you understand this better?
+                        </div>
+                    </div>
+                    <div class="ai-chat-input-area">
+                        <input type="text" id="embedded-ai-input" placeholder="Ask a doubt about this lesson..." autocomplete="off">
+                        <button id="embedded-ai-send" class="btn-primary">
+                            <i data-lucide="send"></i>
+                        </button>
+                    </div>
+                </div>
+                </div>
+
+                <!-- AI Modal -->
+                <div id="ai-modal" class="modal-overlay" style="display:none;">
+                    <div class="modal-content glass animate-slide-up">
+                        <div class="modal-header">
+                            <h2><i data-lucide="sparkles" class="me-2"></i> AI Concept Companion</h2>
+                            <button class="close-btn" onclick="closeAIModal()">&times;</button>
+                        </div>
+                        <div id="ai-loading" class="ai-loading">
+                            <div class="spinner"></div>
+                            <p>VidyaHub Assistant is analyzing the concept... ⚡</p>
+                        </div>
+                        <div id="ai-response-container" style="display:none;">
+                            <div class="ai-explanation" id="ai-explanation-text"></div>
+                            <div class="ai-quiz-section">
+                                <h3><i data-lucide="help-circle" class="me-2"></i> Quick Check</h3>
+                                <div id="ai-quiz-container"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes Tab -->
+                <div id="tab-notes" class="tab-pane glass" style="display: none; padding: 2rem;">
+                    <div id="notes-container" class="notes-wrapper">
+                        {% if note %}
+                            {{ note.content|safe }}
+                        {% else %}
+                            <div id="no-notes-state" class="ai-convo-state" style="padding: 2rem; max-width: 600px; margin: 0 auto;">
+                                <div class="ai-message-bubble glass animate-up">
+                                    <div class="ai-avatar-mini">
+                                        <i data-lucide="sparkles"></i>
+                                    </div>
+                                    <div class="ai-text">
+                                        <p>Hii! I haven't prepared the study notes for <strong>{{ chapter.name }}</strong> yet. 📚</p>
+                                        <p>Shall I analyze this chapter and craft some high-quality notes for you right now?</p>
+                                    </div>
+                                </div>
+                                <div class="ai-actions mt-4 text-center">
+                                    <button id="generate-notes-btn" class="btn btn-primary glass-glow" onclick="generateAINotes()">
+                                        <i data-lucide="zap" class="me-2"></i> Yes, Generate Notes!
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Generation Loading State (Hidden) -->
+                            <div id="notes-generating-state" class="hidden" style="padding: 3rem; max-width: 600px; margin: 0 auto;">
+                                <div class="ai-message-bubble glass typing">
+                                    <div class="ai-avatar-mini pulse">
+                                        <i data-lucide="sparkles"></i>
+                                    </div>
+                                    <div class="ai-text">
+                                        <p>Vidya AI is analyzing <strong>{{ chapter.name }}</strong>... ⚡</p>
+                                        <div class="typing-dots">
+                                            <span></span><span></span><span></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Quiz Tab (Inline) -->
+                <div id="tab-quiz" class="tab-pane glass" style="display: none; padding: 2rem;">
+                    {% if chapter_quiz_count > 0 %}
+                    <div class="inline-quiz-container">
+                        <div class="iq-intro" id="iq-intro">
+                            <div class="iq-chapter-badge"><i data-lucide="pen-line"></i></div>
+                            <h2>Chapter Quiz</h2>
+                            <p class="text-muted">{{ chapter.name }}</p>
+                            <div class="iq-meta-row">
+                                <span class="glass"><i data-lucide="help-circle"></i> {{ chapter_quiz_count }} Questions</span>
+                                <span class="glass"><i data-lucide="zap"></i> 15 XP each</span>
+                                <span class="glass"><i data-lucide="award"></i> +30 XP Perfect</span>
+                            </div>
+                            <button class="btn btn-primary btn-large w-100 mt-3" onclick="startInlineQuiz()">
+                                <i data-lucide="play" class="me-2"></i> Start Quiz
+                            </button>
+                        </div>
+
+                        <div class="iq-quiz" id="iq-quiz" style="display:none;">
+                            <div class="iq-progress-bar glass">
+                                <div class="iq-prog-info">
+                                    <span>{{ chapter.name }}</span>
+                                    <span id="iq-qnum">1 / {{ chapter_quiz_count }}</span>
+                                </div>
+                                <div class="iq-prog-outer">
+                                    <div id="iq-prog-fill" class="iq-prog-fill" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="iq-question-card">
+                                <div class="iq-q-badge" id="iq-q-badge">Q1</div>
+                                <h3 id="iq-q-text" class="iq-q-text"></h3>
+                                <div id="iq-options" class="iq-options-grid"></div>
+                                <div id="iq-explanation" class="iq-explanation" style="display:none;">
+                                    <i data-lucide="info"></i>
+                                    <span id="iq-exp-text"></span>
+                                </div>
+                                <div class="iq-actions" id="iq-next-wrap" style="display:none;">
+                                    <button class="btn btn-primary" id="iq-next-btn" onclick="nextInlineQuiz()">Next <i data-lucide="arrow-right" class="ms-2"></i></button>
+                                </div>
+                            </div>
+                            <div class="iq-live-score glass">
+                                <i data-lucide="star"></i> Score: <span id="iq-live-val">0</span> / {{ chapter_quiz_count }}
+                            </div>
+                        </div>
+
+                        <div class="iq-results" id="iq-results" style="display:none;" class="text-center">
+                            <div class="iq-result-icon" id="iq-result-emoji">🎉</div>
+                            <h2 id="iq-result-title">Chapter Complete!</h2>
+                            <p class="text-muted" id="iq-result-sub">Great effort on {{ chapter.name }}!</p>
+                            <div class="iq-result-stats">
+                                <div class="glass"><span>Score</span><span id="iq-res-score">0/{{chapter_quiz_count}}</span></div>
+                                <div class="glass"><span>XP</span><span class="xp-color" id="iq-res-xp">+0</span></div>
+                                <div class="glass"><span>Accuracy</span><span id="iq-res-acc">0%</span></div>
+                            </div>
+                            <button class="btn btn-secondary mt-3" onclick="retakeInlineQuiz()">
+                                <i data-lucide="rotate-ccw" class="me-2"></i> Retake Quiz
+                            </button>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="no-video-state" style="padding: 4rem 0;">
+                        <i data-lucide="help-circle" style="width: 48px; height: 48px; opacity: 0.5;"></i>
+                        <p style="margin-top: 1rem; opacity: 0.7;">Quiz questions coming soon!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <script>
+                function switchTab(tabId) {
+                    console.log('Switching to tab:', tabId);
+                    
+                    // Update buttons
+                    const buttons = ['video', 'notes', 'quiz'];
+                    buttons.forEach(id => {
+                        const btn = document.getElementById('btn-' + id);
+                        if (btn) {
+                            if (id === tabId) btn.classList.add('active');
+                            else btn.classList.remove('active');
+                        }
+                    });
+                    
+                    // Update content panes
+                    buttons.forEach(id => {
+                        const pane = document.getElementById('tab-' + id);
+                        if (pane) {
+                            if (id === tabId) {
+                                pane.style.display = 'block';
+                                pane.classList.add('active-pane');
+                            } else {
+                                pane.style.display = 'none';
+                                pane.classList.remove('active-pane');
+                            }
+                        }
+                    });
+                    
+                    // Refresh icons in the new tab
+                    if (window.lucide) {
+                        lucide.createIcons();
+                    }
+                }
+
+                function getAIHelp() {
+                    const modal = document.getElementById('ai-modal');
+                    const loading = document.getElementById('ai-loading');
+                    const container = document.getElementById('ai-response-container');
+                    
+                    modal.style.display = 'flex';
+                    loading.style.display = 'block';
+                    container.style.display = 'none';
+
+                    fetch(`/api/ai/stuck/?chapter_id={{ chapter.id }}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.error) {
+                                alert("AI Error: " + data.error);
+                                return;
+                            }
+                            renderAIResponse(data);
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert("Something went wrong with the AI companion.");
+                        });
+                }
+
+                function renderAIResponse(data) {
+                    const loading = document.getElementById('ai-loading');
+                    const container = document.getElementById('ai-response-container');
+                    const explanation = document.getElementById('ai-explanation-text');
+                    const quizContainer = document.getElementById('ai-quiz-container');
+
+                    explanation.innerHTML = data.explanation.replace(/\n/g, '<br>');
+                    quizContainer.innerHTML = '';
+
+                    data.quiz.forEach((q, idx) => {
+                        const qDiv = document.createElement('div');
+                        qDiv.className = 'quiz-question-item glass';
+                        qDiv.innerHTML = `
+                            <p class="fw-bold">${idx + 1}. ${q.question}</p>
+                            <div class="quiz-options grid-cols-2">
+                                ${q.options.map((opt, oIdx) => `
+                                    <button class="opt-btn glass" onclick="checkAIQuiz(this, ${oIdx}, ${q.correct_index})">
+                                        ${opt}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        `;
+                        quizContainer.appendChild(qDiv);
+                    });
+
+                    loading.style.display = 'none';
+                    container.style.display = 'block';
+                    lucide.createIcons(); // Refresh icons
+                }
+
+                function checkAIQuiz(btn, selected, correct) {
+                    const parent = btn.parentElement;
+                    const btns = parent.querySelectorAll('button');
+                    btns.forEach(b => b.disabled = true);
+
+                    if (selected === correct) {
+                        btn.style.background = 'rgba(74, 222, 128, 0.2)';
+                        btn.style.borderColor = '#4ade80';
+                        // Add sparkle or confetti effect if you want
+                    } else {
+                        btn.style.background = 'rgba(248, 113, 113, 0.2)';
+                        btn.style.borderColor = '#f87171';
+                        btns[correct].style.background = 'rgba(74, 222, 128, 0.1)';
+                        btns[correct].style.borderColor = '#4ade80';
+                    }
+                }
+
+                function closeAIModal() {
+                    document.getElementById('ai-modal').style.display = 'none';
+                }
+
+                function generateAINotes() {
+                    const noNotesState = document.getElementById('no-notes-state');
+                    const generatingState = document.getElementById('notes-generating-state');
+                    const notesContainer = document.getElementById('notes-container');
+                    
+                    noNotesState.classList.add('hidden');
+                    generatingState.classList.remove('hidden');
+                    
+                    fetch(`/api/ai/generate-notes/{{ chapter.id }}/`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.error) {
+                                alert(data.error);
+                                noNotesState.classList.remove('hidden');
+                                generatingState.classList.add('hidden');
+                                return;
+                            }
+                            
+                            // Success! Render the notes
+                            notesContainer.innerHTML = data.content;
+                            
+                            // Add a CTA button to discuss with AI
+                            const discussBtn = document.createElement('div');
+                            discussBtn.className = 'mt-4 text-center animate-up';
+                            discussBtn.innerHTML = `
+                                <button class="btn btn-secondary glass" onclick="window.openVidyaAI('Can you explain the key concepts of ${document.querySelector('.player-title').textContent} based on these notes?')">
+                                    <i data-lucide="message-square" class="me-2"></i> Discuss these notes with Vidya AI
+                                </button>
+                            `;
+                            notesContainer.appendChild(discussBtn);
+                            
+                            lucide.createIcons();
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert("Something went wrong while generating notes.");
+                            noNotesState.classList.remove('hidden');
+                            generatingState.classList.add('hidden');
+                        });
+                }
+
+                // ---- Inline Quiz ----
+                const INLINE_MCQS = JSON.parse('{{ mcq_questions|escapejs }}');
+                let iqIdx = 0;
+                let iqScore = 0;
+                let iqAnswered = false;
+
+                function startInlineQuiz() {
+                    document.getElementById('iq-intro').style.display = 'none';
+                    document.getElementById('iq-quiz').style.display = 'block';
+                    showInlineQuestion();
+                }
+
+                function showInlineQuestion() {
+                    if (iqIdx >= INLINE_MCQS.length) { finishInlineQuiz(); return; }
+                    iqAnswered = false;
+                    const q = INLINE_MCQS[iqIdx];
+                    const pct = (iqIdx / INLINE_MCQS.length) * 100;
+
+                    document.getElementById('iq-q-badge').textContent = 'Q' + (iqIdx + 1);
+                    document.getElementById('iq-qnum').textContent = (iqIdx + 1) + ' / ' + INLINE_MCQS.length;
+                    document.getElementById('iq-prog-fill').style.width = pct + '%';
+                    document.getElementById('iq-q-text').textContent = q.question_text;
+                    document.getElementById('iq-explanation').style.display = 'none';
+                    document.getElementById('iq-next-wrap').style.display = 'none';
+
+                    const grid = document.getElementById('iq-options');
+                    grid.innerHTML = '';
+                    const opts = ['A', 'B', 'C', 'D'];
+                    const optKeys = ['option_a', 'option_b', 'option_c', 'option_d'];
+                    opts.forEach((letter, i) => {
+                        const btn = document.createElement('button');
+                        btn.className = 'iq-opt';
+                        btn.onclick = () => handleInlineAnswer(letter, btn, q);
+                        btn.innerHTML = '<span class="iq-opt-letter">' + letter + '</span>' + q[optKeys[i]];
+                        grid.appendChild(btn);
+                    });
+                }
+
+                function handleInlineAnswer(choice, btn, q) {
+                    if (iqAnswered) return;
+                    iqAnswered = true;
+                    const allBtns = document.querySelectorAll('.iq-opt');
+                    allBtns.forEach(b => b.disabled = true);
+
+                    if (choice === q.correct_option) {
+                        btn.classList.add('correct');
+                        iqScore++;
+                        document.getElementById('iq-live-val').textContent = iqScore;
+                    } else {
+                        btn.classList.add('wrong');
+                        allBtns.forEach((b, i) => {
+                            if (['A','B','C','D'][i] === q.correct_option) b.classList.add('correct');
+                        });
+                    }
+
+                    if (q.explanation) {
+                        document.getElementById('iq-exp-text').textContent = q.explanation;
+                        document.getElementById('iq-explanation').style.display = 'flex';
+                    }
+
+                    if (iqIdx < INLINE_MCQS.length - 1) {
+                        document.getElementById('iq-next-btn').innerHTML = 'Next <i data-lucide="arrow-right" class="ms-2"></i>';
+                    } else {
+                        document.getElementById('iq-next-btn').innerHTML = 'See Results <i data-lucide="trophy" class="ms-2"></i>';
+                    }
+                    document.getElementById('iq-next-wrap').style.display = 'block';
+                    if (window.lucide) lucide.createIcons();
+                }
+
+                function nextInlineQuiz() {
+                    iqIdx++;
+                    showInlineQuestion();
+                }
+
+                function finishInlineQuiz() {
+                    document.getElementById('iq-quiz').style.display = 'none';
+                    document.getElementById('iq-results').style.display = 'block';
+
+                    const pct = Math.round((iqScore / INLINE_MCQS.length) * 100);
+                    document.getElementById('iq-res-score').textContent = iqScore + '/' + INLINE_MCQS.length;
+                    document.getElementById('iq-res-acc').textContent = pct + '%';
+
+                    if (pct === 100) {
+                        document.getElementById('iq-result-emoji').textContent = '🏆';
+                        document.getElementById('iq-result-title').textContent = 'Perfect Score!';
+                    } else if (pct >= 70) {
+                        document.getElementById('iq-result-emoji').textContent = '🎉';
+                        document.getElementById('iq-result-title').textContent = 'Excellent Work!';
+                    } else if (pct >= 40) {
+                        document.getElementById('iq-result-emoji').textContent = '👍';
+                        document.getElementById('iq-result-title').textContent = 'Good Effort!';
+                    } else {
+                        document.getElementById('iq-result-emoji').textContent = '📚';
+                        document.getElementById('iq-result-title').textContent = 'Keep Practicing!';
+                    }
+
+                    // Submit score
+                    fetch("{% url 'chapter_quiz_submit' %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify({
+                            chapter_id: {{ chapter.id }},
+                            score: iqScore,
+                            total: INLINE_MCQS.length
+                        })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        document.getElementById('iq-res-xp').textContent = '+' + data.xp_earned;
+                    })
+                    .catch(() => {
+                        document.getElementById('iq-res-xp').textContent = '+' + (iqScore * 15);
+                    });
+                }
+
+                function retakeInlineQuiz() {
+                    iqIdx = 0; iqScore = 0; iqAnswered = false;
+                    document.getElementById('iq-results').style.display = 'none';
+                    document.getElementById('iq-quiz').style.display = 'block';
+                    document.getElementById('iq-live-val').textContent = '0';
+                    showInlineQuestion();
+                }
+            </script>
+
+            <!-- Sidebar Navigation -->
+            <aside class="player-sidebar glass">
+                <div class="sidebar-header">
+                    <h3>Course Content</h3>
+                    <span>{{ all_chapters.count }} Chapters</span>
+                </div>
+                <div class="sidebar-list">
+                    {% for chap in all_chapters %}
+                    <div class="sidebar-chapter-group">
+                        <div class="chapter-header">
+                            <i data-lucide="book-open" class="me-2"></i>
+                            Chapter {{ forloop.counter }}: {{ chap.name }}
+                        </div>
+                        {% for vid in chap.videos.all %}
+                        <a href="{% url 'chapter_detail' grade.slug subject.slug chap.slug %}?v={{ vid.id }}"
+                           class="sidebar-item animate-scale {% if vid.id == current_video.id %}active{% endif %}">
+                            <div class="item-icon">
+                                {% if vid.id == current_video.id %}
+                                <i data-lucide="play-circle" class="playing-icon"></i>
+                                {% else %}
+                                <i data-lucide="play" class="opacity-50"></i>
+                                {% endif %}
+                            </div>
+                            <div class="item-text">
+                                <span class="item-name">{{ vid.title }}</span>
+                                <span class="item-meta">Video Lesson</span>
+                            </div>
+                        </a>
+                        {% empty %}
+                        <div class="sidebar-item disabled opacity-50">
+                            <div class="item-icon"><i data-lucide="circle"></i></div>
+                            <div class="item-text">
+                                <span class="item-name">No videos yet</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+
+<style>
+/* ---- Tab Navigation ---- */
+.tabs-header {
+    border-radius: 1.5rem;
+}
+
+.tab-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: var(--transition);
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-white);
+}
+
+.tab-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+}
+
+.tab-pane {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+.tab-pane:not(.active-pane) {
+    display: none;
+}
+
+/* ---- Chapter Quiz Tab Button ---- */
+.quiz-tab-btn {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(129,140,248,0.1));
+    border: 1.5px solid rgba(99,102,241,0.35) !important;
+    color: #818cf8 !important;
+    font-weight: 700;
+}
+.quiz-tab-btn:hover { background: rgba(99,102,241,0.25) !important; border-color: rgba(99,102,241,0.5) !important; }
+.quiz-count-badge {
+    background: rgba(99,102,241,0.2);
+    color: #818cf8;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 999px;
+    letter-spacing: 0.5px;
+}
+
+/* ---- Chapter Quiz CTA Banner ---- */
+.chap-quiz-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1.25rem 1.5rem;
+    border-radius: 1.5rem;
+    margin-top: 1.25rem;
+    border: 1.5px solid rgba(99,102,241,0.25);
+    background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(129,140,248,0.04));
+    flex-wrap: wrap;
+}
+.chap-quiz-info { display: flex; align-items: center; gap: 1rem; }
+.chap-quiz-icon {
+    width: 46px; height: 46px;
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 6px 16px rgba(99,102,241,0.3);
+}
+.chap-quiz-icon i { width: 22px; height: 22px; color: #fff; }
+.chap-quiz-banner h3 { font-size: 1rem; font-weight: 800; margin: 0 0 0.15rem; }
+.chap-quiz-banner p { font-size: 0.8rem; margin: 0; }
+
+@media (max-width: 600px) {
+    .chap-quiz-banner { flex-direction: column; text-align: center; }
+    .chap-quiz-info { flex-direction: column; }
+}
+
+/* ---- Inline Quiz Styles ---- */
+.inline-quiz-container { max-width: 600px; margin: 0 auto; }
+.iq-intro { text-align: center; padding: 1rem; }
+.iq-chapter-badge {
+    width: 60px; height: 60px;
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1rem;
+}
+.iq-chapter-badge i { width: 28px; height: 28px; color: #fff; }
+.iq-meta-row { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin: 1rem 0; }
+.iq-meta-row span { padding: 0.4rem 0.8rem; border-radius: 999px; font-size: 0.8rem; }
+.iq-meta-row i { width: 14px; height: 14px; vertical-align: middle; margin-right: 4px; }
+
+.iq-progress-bar { padding: 0.8rem 1rem; border-radius: 1rem; margin-bottom: 1rem; }
+.iq-prog-info { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.4rem; }
+.iq-prog-outer { height: 6px; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; }
+.iq-prog-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #818cf8); transition: width 0.3s; }
+
+.iq-question-card { padding: 1.5rem; border-radius: 1.2rem; }
+.iq-q-badge { display: inline-block; background: #6366f1; color: #fff; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.6rem; border-radius: 999px; margin-bottom: 0.8rem; }
+.iq-q-text { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.2rem; }
+
+.iq-options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1.2rem; }
+.iq-opt {
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 0.8rem;
+    padding: 0.7rem 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    text-align: left;
+    display: flex; align-items: center; gap: 0.5rem;
+}
+.iq-opt:hover:not(:disabled) { border-color: #6366f1; background: rgba(99,102,241,0.1); }
+.iq-opt.correct { border-color: #4ade80; background: rgba(74,222,128,0.15); }
+.iq-opt.wrong { border-color: #f87171; background: rgba(248,113,113,0.15); }
+.iq-opt-letter {
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    background: rgba(99,102,241,0.15);
+    color: #818cf8;
+    font-size: 0.75rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+}
+
+.iq-explanation { display: flex; gap: 0.6rem; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); border-radius: 0.8rem; padding: 0.8rem; font-size: 0.85rem; margin-bottom: 1rem; }
+.iq-explanation i { width: 16px; height: 16px; color: #818cf8; flex-shrink: 0; }
+.iq-actions { text-align: right; }
+.iq-live-score { display: flex; align-items: center; gap: 0.4rem; padding: 0.6rem 1rem; border-radius: 0.8rem; font-weight: 700; margin-top: 0.5rem; }
+.iq-live-score i { width: 16px; height: 16px; color: #fbbf24; }
+
+.iq-results { padding: 2rem; text-align: center; }
+.iq-result-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+.iq-result-stats { display: flex; gap: 0.8rem; justify-content: center; margin: 1.5rem 0; }
+.iq-result-stats > div { padding: 0.8rem 1.2rem; border-radius: 1rem; display: flex; flex-direction: column; }
+.iq-result-stats span:first-child { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
+.iq-result-stats span:last-child { font-size: 1.2rem; font-weight: 800; }
+
+@media (max-width: 500px) {
+    .iq-options-grid { grid-template-columns: 1fr; }
+    .iq-result-stats { flex-direction: column; }
+}
+</style>
+
+{% endblock %}

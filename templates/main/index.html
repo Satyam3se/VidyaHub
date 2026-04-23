@@ -1,0 +1,309 @@
+{% extends 'main/base.html' %}
+
+{% block content %}
+<section class="hero">
+    <div class="container">
+        <h1 class="hero-title">Experience the Future of <span class="text-gradient">Learning</span></h1>
+        <p class="hero-subtitle">VidyaHub combines AI and gamification to create the ultimate educational experience.</p>
+        <div class="hero-actions">
+            <a href="#" class="btn btn-primary btn-large">Start Learning</a>
+            <a href="{% url 'course_index' %}" class="btn btn-outline btn-large">View Courses</a>
+        </div>
+        
+        <!-- Animated Stats -->
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <span class="stat-number" data-target="10000">0</span>
+                <span class="stat-label">Active Students</span>
+            </div>
+            <div class="hero-stat">
+                <span class="stat-number" data-target="500">0</span>
+                <span class="stat-label">Expert Tutors</span>
+            </div>
+            <div class="hero-stat">
+                <span class="stat-number" data-target="50">0</span>
+                <span class="stat-label">Subjects</span>
+            </div>
+            <div class="hero-stat">
+                <span class="stat-number" data-target="98">0</span>
+                <span class="stat-label">% Success Rate</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="features-section">
+    <div class="container">
+        <h2 class="section-title">Why Choose <span class="text-gradient">VidyaHub?</span></h2>
+        <p class="section-subtitle">The ultimate AI-powered learning platform designed for modern students</p>
+        
+        <div class="features-grid">
+            <div class="feature-card glass glass-glow">
+                <div class="feature-icon">
+                    <i data-lucide="brain-circuit"></i>
+                </div>
+                <h3>AI-Powered Learning</h3>
+                <p>Personalized study plans powered by advanced AI that adapts to your learning style and pace.</p>
+            </div>
+            
+            <div class="feature-card glass glass-glow">
+                <div class="feature-icon">
+                    <i data-lucide="trophy"></i>
+                </div>
+                <h3>Gamified Experience</h3>
+                <p>Earn XP, level up, unlock achievements, and compete on leaderboards while learning.</p>
+            </div>
+            
+            <div class="feature-card glass glass-glow">
+                <div class="feature-icon">
+                    <i data-lucide="users"></i>
+                </div>
+                <h3>Live Battles</h3>
+                <p>Compete with peers in real-time quizzes and challenge your friends to duels.</p>
+            </div>
+            
+            <div class="feature-card glass glass-glow">
+                <div class="feature-icon">
+                    <i data-lucide="sparkles"></i>
+                </div>
+                <h3>Vidya AI Assistant</h3>
+                <p>Get instant explanations, solve doubts, and receive 24/7 tutoring from our AI bot.</p>
+            </div>
+            
+            <div class="feature-card glass glass-glow">
+                <div class="feature-icon">
+                    <i data-lucide="video"></i>
+                </div>
+                <h3>Video Lessons</h3>
+                <p>High-quality video content with interactive quizzes and chapter notes for better retention.</p>
+            </div>
+            
+            <div class="feature-card glass glass-glow">
+                <div class="feature-icon">
+                    <i data-lucide="target"></i>
+                </div>
+                <h3>Exam Preparation</h3>
+                <p>Specialized games and tests for JEE, NEET, and NDA exam preparation.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works -->
+<section class="how-it-works">
+    <div class="container">
+        <h2 class="section-title">How <span class="text-gradient">VidyaHub</span> Works</h2>
+        
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <h3>Sign Up</h3>
+                <p>Create your account and select your grade and target exam.</p>
+            </div>
+            
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <h3>Learn</h3>
+                <p>Watch video lessons and read comprehensive chapter notes.</p>
+            </div>
+            
+            <div class="step-card">
+                <div class="step-number">3</div>
+                <h3>Play</h3>
+                <p>Complete fun educational games to earn XP and level up.</p>
+            </div>
+            
+            <div class="step-card">
+                <div class="step-number">4</div>
+                <h3>Succeed</h3>
+                <p>Track progress, compete on leaderboards, and achieve your goals.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Call to Action -->
+<section class="cta-section">
+    <div class="container">
+        <div class="cta-content glass glass-glow">
+            <h2>Ready to Start Your Learning Journey?</h2>
+            <p>Join thousands of students transforming their education with VidyaHub</p>
+            <div class="cta-buttons">
+                <a href="#" class="btn btn-primary btn-large">Get Started Free</a>
+                <a href="{% url 'course_index' %}" class="btn btn-outline btn-large">Explore Courses</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 4rem;
+    margin-top: 4rem;
+    flex-wrap: wrap;
+}
+.hero-stat {
+    text-align: center;
+}
+.stat-number {
+    display: block;
+    font-size: 3rem;
+    font-weight: 800;
+    color: #818cf8;
+    line-height: 1;
+}
+.stat-label {
+    font-size: 0.9rem;
+    color: #94a3b8;
+    margin-top: 0.5rem;
+}
+
+.features-section {
+    padding: 6rem 0;
+}
+.section-title {
+    text-align: center;
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+}
+.section-subtitle {
+    text-align: center;
+    color: #94a3b8;
+    margin-bottom: 3rem;
+}
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+.feature-card {
+    padding: 2rem;
+    border-radius: 1.5rem;
+    transition: all 0.3s ease;
+}
+.feature-card:hover {
+    transform: translateY(-8px);
+}
+.feature-icon {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+}
+.feature-icon i {
+    width: 28px;
+    height: 28px;
+    color: #fff;
+}
+.feature-card h3 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+.feature-card p {
+    color: #94a3b8;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.how-it-works {
+    padding: 6rem 0;
+    background: rgba(0,0,0,0.2);
+}
+.steps-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+    margin-top: 3rem;
+}
+.step-card {
+    text-align: center;
+    position: relative;
+}
+.step-number {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #fff;
+    margin: 0 auto 1rem;
+}
+.step-card h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+.step-card p {
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+.cta-section {
+    padding: 6rem 0;
+}
+.cta-content {
+    text-align: center;
+    padding: 4rem;
+    border-radius: 2rem;
+    background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.08));
+}
+.cta-content h2 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+.cta-content p {
+    color: #94a3b8;
+    margin-bottom: 2rem;
+}
+.cta-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .hero-stats { gap: 2rem; }
+    .stat-number { font-size: 2rem; }
+    .steps-grid { grid-template-columns: 1fr; gap: 3rem; }
+    .step-card::after { display: none; }
+    .cta-content { padding: 2rem; }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animate numbers
+    const stats = document.querySelectorAll('.stat-number');
+    stats.forEach(stat => {
+        const target = parseInt(stat.dataset.target);
+        const duration = 2000;
+        const step = target / (duration / 16);
+        let current = 0;
+        
+        const timer = setInterval(() => {
+            current += step;
+            if (current >= target) {
+                stat.textContent = target.toLocaleString();
+                clearInterval(timer);
+            } else {
+                stat.textContent = Math.floor(current).toLocaleString();
+            }
+        }, 16);
+    });
+    
+    if (window.lucide) lucide.createIcons();
+});
+</script>
+{% endblock %}

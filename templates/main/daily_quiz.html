@@ -1,0 +1,196 @@
+{% extends 'main/base.html' %}
+
+{% block content %}
+<section class="quiz-section">
+    <div class="container-narrow">
+        <div id="quiz-intro" class="glass-card animate-scale text-center">
+            <h1 class="text-gradient mb-3">Daily Subject Quest</h1>
+            <p class="text-muted mb-4">You are about to face 30 challenges in <b>{{ subject.name }}</b>. 
+            Speed and accuracy will grant you legendary XP!</p>
+            <div class="quiz-perks mb-4">
+                <div class="perk glass"><i data-lucide="zap"></i> Speed Bonus</div>
+                <div class="perk glass"><i data-lucide="shield"></i> 30 Questions</div>
+                <div class="perk glass"><i data-lucide="award"></i> Level Up</div>
+            </div>
+            <button class="btn btn-primary btn-large w-100" onclick="startQuiz()">
+                Begin Quest
+            </button>
+        </div>
+
+        <div id="quiz-content" style="display:none;">
+            <div class="quiz-header glass mb-4">
+                <div class="quiz-progress">
+                    <span id="q-number">Question 1/{{ questions|length }}</span>
+                    <div class="progress-outer"><div id="q-progress" class="progress-inner"></div></div>
+                </div>
+                <div class="quiz-timer">
+                    <i data-lucide="clock"></i>
+                    <span id="timer-text">00:00</span>
+                </div>
+            </div>
+
+            <div id="question-card" class="glass-card quest-card animate-up">
+                <h2 id="question-text" class="mb-4">...</h2>
+                <div id="options-grid" class="quiz-options grid-cols-2">
+                    <!-- Options -->
+                </div>
+            </div>
+
+            <div class="quiz-footer mt-4">
+                <p class="text-muted"><i data-lucide="info"></i> Choose the best answer to earn XP.</p>
+            </div>
+        </div>
+
+        <div id="quiz-results" style="display:none;" class="glass-card animate-scale text-center">
+            <div id="lvl-up-anim" style="display:none;" class="celebration">LEVEL UP! 🎊</div>
+            <h1 class="text-gradient">Quest Completed!</h1>
+            <div class="result-stats mt-4">
+                <div class="res-item glass">
+                    <span class="label">Score</span>
+                    <span class="value" id="final-score">0/{{ questions|length }}</span>
+                </div>
+                <div class="res-item glass">
+                    <span class="label">XP Earned</span>
+                    <span class="value text-primary" id="final-xp">+0</span>
+                </div>
+                <div class="res-item glass">
+                    <span class="label">New Streak</span>
+                    <span class="value text-accent" id="final-streak">1 Day</span>
+                </div>
+            </div>
+            <div class="mt-4">
+                <a href="{% url 'game_dashboard' %}" class="btn btn-primary w-100">Claim Rewards & Go Back</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.quiz-section { padding: 10rem 0 6rem; min-height: 100vh; }
+.container-narrow { max-width: 700px; margin: 0 auto; }
+.quest-card { padding: 3rem; border-radius: 2.5rem; }
+.quiz-perks { display: flex; justify-content: center; gap: 1rem; }
+.perk { padding: 0.5rem 1rem; border-radius: 99rem; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; border: 1px solid var(--glass-border); }
+.quiz-header { padding: 1.5rem 2.5rem; border-radius: 2rem; display: flex; justify-content: space-between; align-items: center; }
+.quiz-progress { flex: 1; margin-right: 2rem; }
+.progress-outer { height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; margin-top: 0.5rem; }
+.progress-inner { height: 100%; width: 0%; background: var(--primary); transition: width 0.3s ease; }
+.quiz-timer { font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; }
+.celebration { font-size: 3rem; font-weight: 900; color: #fbbf24; text-shadow: 0 0 20px rgba(251, 191, 36, 0.5); margin-bottom: 1rem; animation: bounce 1s infinite; }
+@keyframes bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+.res-item { padding: 1.5rem; border-radius: 1.5rem; flex: 1; }
+.result-stats { display: flex; gap: 1rem; }
+</style>
+
+<script>
+    const questions = [
+        {% for q in questions %}
+        {
+            id: {{ q.id }},
+            text: "{{ q.question_text|escapejs }}",
+            options: ["{{ q.option_a|escapejs }}", "{{ q.option_b|escapejs }}", "{{ q.option_c|escapejs }}", "{{ q.option_d|escapejs }}"],
+            answer: "{{ q.correct_option }}"
+        },
+        {% endfor %}
+    ];
+
+    let currentIdx = 0;
+    let score = 0;
+    let startTime;
+    let timerInterval;
+
+    function startQuiz() {
+        document.getElementById('quiz-intro').style.display = 'none';
+        document.getElementById('quiz-content').style.display = 'block';
+        startTime = Date.now();
+        timerInterval = setInterval(updateTimer, 1000);
+        showQuestion();
+    }
+
+    function updateTimer() {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        const secs = (elapsed % 60).toString().padStart(2, '0');
+        document.getElementById('timer-text').innerText = `${mins}:${secs}`;
+    }
+
+    function showQuestion() {
+        const q = questions[currentIdx];
+        document.getElementById('q-number').innerText = `Question ${currentIdx + 1}/${questions.length}`;
+        document.getElementById('q-progress').style.width = ((currentIdx + 1) / questions.length * 100) + '%';
+        document.getElementById('question-text').innerText = q.text;
+        
+        const grid = document.getElementById('options-grid');
+        grid.innerHTML = '';
+        q.options.forEach((opt, idx) => {
+            const letter = String.fromCharCode(65 + idx);
+            const btn = document.createElement('button');
+            btn.className = 'opt-btn glass';
+            btn.innerText = opt;
+            btn.onclick = () => handleAnswer(letter, btn);
+            grid.appendChild(btn);
+        });
+    }
+
+    function handleAnswer(choice, btn) {
+        const q = questions[currentIdx];
+        const btns = document.querySelectorAll('.opt-btn');
+        btns.forEach(b => b.disabled = true);
+
+        if (choice === q.answer) {
+            btn.style.borderColor = '#4ade80';
+            btn.style.background = 'rgba(74, 222, 128, 0.1)';
+            score++;
+        } else {
+            btn.style.borderColor = '#f87171';
+            btn.style.background = 'rgba(248, 113, 113, 0.1)';
+            // Show correct answer
+            btns.forEach((b, idx) => {
+               if (String.fromCharCode(65 + idx) === q.answer) {
+                   b.style.borderColor = '#4ade80';
+               }
+            });
+        }
+
+        setTimeout(() => {
+            currentIdx++;
+            if (currentIdx < questions.length) {
+                showQuestion();
+            } else {
+                finishQuiz();
+            }
+        }, 1000);
+    }
+
+    function finishQuiz() {
+        clearInterval(timerInterval);
+        const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+        
+        // Submit Results
+        fetch("{% url 'daily_quiz_submit' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                subject_id: {{ subject.id }},
+                score: score,
+                time_taken: timeTaken
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('quiz-content').style.display = 'none';
+            document.getElementById('quiz-results').style.display = 'block';
+            document.getElementById('final-score').innerText = `${score}/30`;
+            document.getElementById('final-xp').innerText = `+${data.xp_earned}`;
+            document.getElementById('final-streak').innerText = `${data.streak} Day${data.streak > 1 ? 's' : ''}`;
+            
+            if (data.level_up) {
+                document.getElementById('lvl-up-anim').style.display = 'block';
+            }
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,208 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="game-page">
+    <div class="game-container glass">
+        <div class="game-header">
+            <div class="game-title">
+                <h1><i data-lucide="calculator" class="title-icon"></i> NDA Math</h1>
+                <p>Crack the code with JEE-level math!</p>
+            </div>
+            <div class="game-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Streak</span>
+                    <span class="stat-value" id="streak">0</span>
+                </div>
+                <div class="stat-item timer">
+                    <span class="stat-label">Time</span>
+                    <span class="stat-value" id="timer">120</span>s
+                </div>
+            </div>
+        </div>
+
+        <div id="start-screen" class="game-start">
+            <div class="start-content">
+                <div class="start-icon">
+                    <i data-lucide="calculator"></i>
+                </div>
+                <h2>Ready for NDA Math?</h2>
+                <p>Advanced algebra, calculus, and trigonometry questions await!</p>
+                <ul class="start-info">
+                    <li>🎯 15 XP per correct answer</li>
+                    <li>🔥 Bonus for streaks</li>
+                    <li>⏱️ 2 minutes</li>
+                </ul>
+                <button onclick="startGame()" class="start-button">
+                    <i data-lucide="play"></i> Start Game
+                </button>
+            </div>
+        </div>
+
+        <div id="game-area" style="display:none;" class="game-play">
+            <div class="problem-box">
+                <span class="num" id="num1">0</span>
+                <span class="op" id="op">+</span>
+                <span class="num" id="num2">0</span>
+                <span class="op">=</span>
+                <span class="question">?</span>
+            </div>
+            
+            <div class="answers" id="answers"></div>
+        </div>
+
+        <div id="result-screen" class="result-modal">
+            <div class="result-content glass">
+                <div class="result-icon">
+                    <i data-lucide="trophy"></i>
+                </div>
+                <h2>Great Effort!</h2>
+                <div class="result-stats">
+                    <div class="result-stat">
+                        <span class="label">Solved</span>
+                        <span class="value" id="correct">0</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="label">XP Earned</span>
+                        <span class="value highlight" id="final-xp">+0</span>
+                    </div>
+                </div>
+                <div class="result-actions">
+                    <button onclick="location.reload()" class="btn btn-primary">
+                        <i data-lucide="refresh-cw"></i> Play Again
+                    </button>
+                    <a href="{% url 'game_dashboard' %}" class="btn btn-outline">
+                        <i data-lucide="home"></i> Back to Games
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.game-page { padding: 100px 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.game-container { max-width: 600px; width: 100%; padding: 2rem; border-radius: 2rem; text-align: center; }
+.game-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; text-align: left; }
+.game-title h1 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; margin-bottom: 0.25rem; }
+.title-icon { color: #f59e0b; }
+.game-title p { color: #94a3b8; font-size: 0.9rem; }
+.game-stats { display: flex; gap: 1rem; }
+.stat-item { background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 0.75rem; text-align: center; }
+.stat-item .stat-label { display: block; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
+.stat-item .stat-value { font-size: 1.25rem; font-weight: 700; }
+.stat-item.timer .stat-value { color: #ef4444; }
+
+.game-start { padding: 3rem 1rem; }
+.start-content { text-align: center; }
+.start-icon { width: 80px; height: 80px; background: linear-gradient(135deg, #f59e0b, #fbbf24); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+.start-icon i { width: 40px; height: 40px; color: #fff; }
+.start-content h2 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+.start-content > p { color: #94a3b8; margin-bottom: 1.5rem; }
+.start-info { list-style: none; padding: 0; margin-bottom: 2rem; }
+.start-info li { padding: 0.5rem; color: #cbd5e1; }
+.start-button { display: inline-flex; align-items: center; gap: 0.5rem; padding: 1rem 2.5rem; font-size: 1.1rem; font-weight: 600; background: linear-gradient(135deg, #f59e0b, #fbbf24); border: none; border-radius: 1rem; color: #fff; cursor: pointer; transition: all 0.3s ease; }
+.start-button:hover { transform: scale(1.05); box-shadow: 0 8px 24px rgba(245,158,11,0.4); }
+
+.game-play { padding: 1rem 0; }
+.problem-box { font-size: 3.5rem; font-weight: 700; margin: 2rem 0 2.5rem; }
+.problem-box .num { color: #fff; }
+.problem-box .op { color: #818cf8; margin: 0 0.5rem; }
+.problem-box .question { color: #fbbf24; }
+.answers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; max-width: 450px; margin: 0 auto; }
+.answer-btn { padding: 1.25rem; font-size: 1.5rem; font-weight: 700; background: rgba(255,255,255,0.05); border: 2px solid var(--glass-border); border-radius: 1rem; color: #fff; cursor: pointer; transition: all 0.2s ease; }
+.answer-btn:hover { background: rgba(99,102,241,0.2); border-color: #6366f1; transform: scale(1.02); }
+
+.result-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 100; }
+.result-modal.show { display: flex; }
+.result-content { padding: 3rem; border-radius: 2rem; text-align: center; max-width: 400px; }
+.result-icon { width: 70px; height: 70px; background: linear-gradient(135deg, #fbbf24, #f59e0b); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+.result-icon i { width: 35px; height: 35px; color: #fff; }
+.result-content h2 { font-size: 2rem; margin-bottom: 1.5rem; }
+.result-stats { display: flex; justify-content: center; gap: 2rem; margin-bottom: 2rem; }
+.result-stat { text-align: center; }
+.result-stat .label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem; }
+.result-stat .value { font-size: 1.75rem; font-weight: 700; }
+.result-stat .value.highlight { color: #fbbf24; }
+.result-actions { display: flex; flex-direction: column; gap: 0.75rem; }
+.result-actions .btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.result-actions .btn i { width: 18px; height: 18px; }
+</style>
+
+<script>
+var problems = [
+    {a: 1, b: 1, op: '+', ans: 2}, {a: 2, b: 2, op: 'x', ans: 4}, {a: 3, b: 3, op: 'x', ans: 9},
+    {a: 5, b: 5, op: 'x', ans: 25}, {a: 7, b: 7, op: 'x', ans: 49}, {a: 10, b: 10, op: 'x', ans: 100},
+    {a: 12, b: 12, op: 'x', ans: 144}, {a: 15, b: 15, op: 'x', ans: 225}, {a: 20, b: 20, op: 'x', ans: 400},
+    {a: 25, b: 4, op: 'x', ans: 100}, {a: 50, b: 2, op: 'x', ans: 100}, {a: 100, b: 10, op: 'x', ans: 1000},
+    {a: 2, b: 3, op: 'x', ans: 6}, {a: 4, b: 5, op: 'x', ans: 20}, {a: 6, b: 7, op: 'x', ans: 42},
+    {a: 8, b: 8, op: 'x', ans: 64}, {a: 9, b: 9, op: 'x', ans: 81}, {a: 11, b: 11, op: 'x', ans: 121},
+    {a: 30, b: 40, op: '+', ans: 70}, {a: 50, b: 50, op: '+', ans: 100}, {a: 75, b: 25, op: '+', ans: 100},
+    {a: 100, b: 200, op: '+', ans: 300}, {a: 250, b: 250, op: '+', ans: 500}, {a: 500, b: 500, op: '+', ans: 1000},
+    {a: 144, b: 12, op: '/', ans: 12}, {a: 196, b: 14, op: '/', ans: 14}, {a: 225, b: 15, op: '/', ans: 15},
+    {a: 169, b: 13, op: '/', ans: 13}, {a: 256, b: 16, op: '/', ans: 16}, {a: 289, b: 17, op: '/', ans: 17},
+    {a: -5, b: 5, op: '+', ans: 0}, {a: -10, b: 10, op: '+', ans: 0}, {a: -20, b: 20, op: '+', ans: 0},
+    {a: -3, b: -4, op: 'x', ans: 12}, {a: -5, b: -6, op: 'x', ans: 30}, {a: -7, b: -8, op: 'x', ans: 56},
+];
+var currentProblem = {};
+var score = 0;
+var correct = 0;
+var streak = 0;
+var gameTimer = null;
+var timeLeft = 120;
+
+function startGame() {
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('game-area').style.display = 'block';
+    document.getElementById('result-screen').classList.remove('show');
+    score = 0; correct = 0; streak = 0; timeLeft = 120;
+    newProblem();
+    gameTimer = setInterval(function() {
+        timeLeft--;
+        document.getElementById('timer').textContent = timeLeft;
+        if (timeLeft <= 0) { clearInterval(gameTimer); endGame(); }
+    }, 1000);
+}
+
+function newProblem() {
+    currentProblem = problems[Math.floor(Math.random() * problems.length)];
+    document.getElementById('num1').textContent = currentProblem.a;
+    document.getElementById('num2').textContent = currentProblem.b;
+    document.getElementById('op').textContent = currentProblem.op;
+    var answers = [currentProblem.ans];
+    while (answers.length < 4) {
+        var fake = currentProblem.ans + Math.floor(Math.random() * 20) - 10;
+        if (fake !== currentProblem.ans && fake > 0 && answers.indexOf(fake) === -1) { answers.push(fake); }
+    }
+    answers.sort(function() { return Math.random() - 0.5; });
+    var grid = document.getElementById('answers');
+    grid.innerHTML = '';
+    for (var i = 0; i < answers.length; i++) {
+        var btn = document.createElement('button');
+        btn.className = 'answer-btn';
+        btn.textContent = answers[i];
+        btn.onclick = (function(ans) { return function() { checkAnswer(ans); }; })(answers[i]);
+        grid.appendChild(btn);
+    }
+}
+
+function checkAnswer(ans) {
+    if (ans === currentProblem.ans) { correct++; streak++; score += 15; if (streak > 5) score += 5; } else { streak = 0; }
+    document.getElementById('score').textContent = score;
+    document.getElementById('streak').textContent = streak;
+    newProblem();
+}
+
+function endGame() {
+    document.getElementById('correct').textContent = correct;
+    document.getElementById('final-xp').textContent = '+' + score + ' XP';
+    document.getElementById('result-screen').classList.add('show');
+}
+
+document.addEventListener('DOMContentLoaded', function() { if (window.lucide) lucide.createIcons(); });
+</script>
+{% endblock %}

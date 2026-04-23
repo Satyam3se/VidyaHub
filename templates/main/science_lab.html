@@ -1,0 +1,415 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="game-page">
+    <div class="game-container glass">
+        <div class="game-header">
+            <div class="game-title">
+                <h1><i data-lucide="flask-conical" class="title-icon"></i> Science Lab</h1>
+                <p>Class {{grade}} • Match science pairs!</p>
+            </div>
+            <div class="game-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Pairs</span>
+                    <span class="stat-value" id="pairs">0</span>/8
+                </div>
+                <div class="stat-item timer">
+                    <span class="stat-label">Time</span>
+                    <span class="stat-value" id="timer">60</span>s
+                </div>
+            </div>
+        </div>
+
+        <div id="start-screen" class="game-start">
+            <div class="start-content">
+                <div class="start-icon" style="background: linear-gradient(135deg, #3b82f6, #06b6d4);">
+                    <i data-lucide="flask-conical"></i>
+                </div>
+                <h2>Science Lab Explorer</h2>
+                <p>Match the science terms with their definitions!</p>
+                <ul class="start-info">
+                    <li>🎯 25 XP per match</li>
+                    <li>⏱️ 60 seconds</li>
+                    <li>🔬 Find 8 pairs</li>
+                </ul>
+                <button onclick="startScienceGame()" class="start-button">
+                    <i data-lucide="play"></i> Start Game
+                </button>
+            </div>
+        </div>
+
+        <div id="game-area" style="display:none;" class="game-play">
+            <div class="cards-grid" id="cards-grid"></div>
+        </div>
+
+        <div id="result-screen" class="result-modal">
+            <div class="result-content glass">
+                <div class="result-icon" style="background: linear-gradient(135deg, #3b82f6, #06b6d4);">
+                    <i data-lucide="trophy"></i>
+                </div>
+                <h2>Great Work!</h2>
+                <div class="result-stats">
+                    <div class="result-stat">
+                        <span class="label">Pairs Matched</span>
+                        <span class="value" id="final-pairs">0</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="label">XP Earned</span>
+                        <span class="value highlight" id="final-xp">+0</span>
+                    </div>
+                </div>
+                <div class="result-actions">
+                    <button onclick="location.reload()" class="btn btn-primary">
+                        <i data-lucide="refresh-cw"></i> Play Again
+                    </button>
+                    <a href="{% url 'game_dashboard' %}" class="btn btn-outline">
+                        <i data-lucide="home"></i> Back to Games
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.game-page { padding: 100px 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.game-container { max-width: 700px; width: 100%; padding: 2rem; border-radius: 2rem; text-align: center; }
+.game-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; text-align: left; }
+.game-title h1 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; margin-bottom: 0.25rem; }
+.title-icon { color: #06b6d4; }
+.game-title p { color: #94a3b8; font-size: 0.9rem; }
+.game-stats { display: flex; gap: 1rem; }
+.stat-item { background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 0.75rem; text-align: center; }
+.stat-item .stat-label { display: block; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
+.stat-item .stat-value { font-size: 1.25rem; font-weight: 700; }
+.stat-item.timer .stat-value { color: #ef4444; }
+
+.game-start { padding: 3rem 1rem; }
+.start-content { text-align: center; }
+.start-icon { width: 80px; height: 80px; background: linear-gradient(135deg, #3b82f6, #06b6d4); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+.start-icon i { width: 40px; height: 40px; color: #fff; }
+.start-content h2 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+.start-content > p { color: #94a3b8; margin-bottom: 1.5rem; }
+.start-info { list-style: none; padding: 0; margin-bottom: 2rem; }
+.start-info li { padding: 0.5rem; color: #cbd5e1; }
+.start-button { display: inline-flex; align-items: center; gap: 0.5rem; padding: 1rem 2.5rem; font-size: 1.1rem; font-weight: 600; background: linear-gradient(135deg, #3b82f6, #06b6d4); border: none; border-radius: 1rem; color: #fff; cursor: pointer; transition: all 0.3s ease; }
+.start-button:hover { transform: scale(1.05); box-shadow: 0 8px 24px rgba(59,130,246,0.4); }
+
+.game-play { padding: 1rem 0; }
+.cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; max-width: 600px; margin: 0 auto; }
+.card { padding: 1.25rem; background: rgba(255,255,255,0.05); border: 2px solid var(--glass-border); border-radius: 1rem; color: #fff; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease; }
+.card:hover { background: rgba(59,130,246,0.15); border-color: #3b82f6; }
+.card.flipped { background: linear-gradient(135deg, #3b82f6, #6366f1); border-color: #3b82f6; }
+.card.matched { background: #10b981; opacity: 0.5; pointer-events: none; }
+
+.result-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 100; }
+.result-modal.show { display: flex; }
+.result-content { padding: 3rem; border-radius: 2rem; text-align: center; max-width: 400px; }
+.result-icon { width: 70px; height: 70px; background: linear-gradient(135deg, #3b82f6, #06b6d4); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+.result-icon i { width: 35px; height: 35px; color: #fff; }
+.result-content h2 { font-size: 2rem; margin-bottom: 1.5rem; }
+.result-stats { display: flex; justify-content: center; gap: 2rem; margin-bottom: 2rem; }
+.result-stat { text-align: center; }
+.result-stat .label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem; }
+.result-stat .value { font-size: 1.75rem; font-weight: 700; }
+.result-stat .value.highlight { color: #06b6d4; }
+.result-actions { display: flex; flex-direction: column; gap: 0.75rem; }
+.result-actions .btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.result-actions .btn i { width: 18px; height: 18px; }
+</style>
+
+<script>
+var classLevel = {{ grade }};
+
+var scienceDataByClass = {
+    1: [
+        {symbol: "S", name: "Sun", match: "Gives light"},
+        {property: "Gives light", match: "Sun"},
+        {symbol: "M", name: "Moon", match: "At night"},
+        {property: "At night", match: "Moon"},
+        {symbol: "R", name: "Rain", match: "Water fall"},
+        {property: "Water fall", match: "Rain"},
+        {symbol: "L", name: "Leaf", match: "Green"},
+        {property: "Green", match: "Leaf"},
+        {symbol: "F", name: "Fire", match: "Hot"},
+        {property: "Hot", match: "Fire"},
+        {symbol: "W", name: "Water", match: "Wet"},
+        {property: "Wet", match: "Water"},
+        {symbol: "A", name: "Air", match: "We breathe"},
+        {property: "We breathe", match: "Air"},
+        {symbol: "E", name: "Earth", match: "Soil"},
+        {property: "Soil", match: "Earth"},
+        {symbol: "S", name: "Star", match: "Twinkle"},
+        {property: "Twinkle", match: "Star"}
+    ],
+    2: [
+        {symbol: "H", name: "Hydrogen", match: "Atomic 1"},
+        {property: "Atomic 1", match: "Hydrogen"},
+        {symbol: "O", name: "Oxygen", match: "We breathe"},
+        {property: "We breathe", match: "Oxygen"},
+        {symbol: "C", name: "Carbon", match: "In diamonds"},
+        {property: "In diamonds", match: "Carbon"},
+        {symbol: "N", name: "Nitrogen", match: "Air (78%)"},
+        {property: "Air (78%)", match: "Nitrogen"},
+        {symbol: "Fe", name: "Iron", match: "Rusts"},
+        {property: "Rusts", match: "Iron"},
+        {symbol: "Au", name: "Gold", match: "Shiny metal"},
+        {property: "Shiny metal", match: "Gold"},
+        {symbol: "Ag", name: "Silver", match: "Polish metal"},
+        {property: "Polish metal", match: "Silver"},
+        {symbol: "Cu", name: "Copper", match: "Brown"},
+        {property: "Brown", match: "Copper"},
+        {symbol: "Zn", name: "Zinc", match: "Galvanize"},
+        {property: "Galvanize", match: "Zinc"}
+    ],
+    3: [
+        {symbol: "W", name: "Water", match: "H2O"},
+        {property: "H2O", match: "Water"},
+        {symbol: "S", name: "Salt", match: "NaCl"},
+        {property: "NaCl", match: "Salt"},
+        {symbol: "A", name: "Air", match: "Nitrogen+Oxygen"},
+        {property: "Nitrogen+Oxygen", match: "Air"},
+        {symbol: "L", name: "Light", match: "Speed"},
+        {property: "Speed", match: "Light"},
+        {symbol: "H", name: "Heat", match: "Energy"},
+        {property: "Energy", match: "Heat"},
+        {symbol: "M", name: "Magnet", match: "Attracts iron"},
+        {property: "Attracts iron", match: "Magnet"},
+        {symbol: "E", name: "Electricity", match: "Power"},
+        {property: "Power", match: "Electricity"},
+        {symbol: "S", name: "Sound", match: "Travels in air"},
+        {property: "Travels in air", match: "Sound"},
+        {symbol: "F", name: "Force", match: "Push/Pull"},
+        {property: "Push/Pull", match: "Force"}
+    ],
+    4: [
+        {symbol: "P", name: "Plant", match: "Make food"},
+        {property: "Make food", match: "Plant"},
+        {symbol: "L", name: "Leaf", match: "Photosynthesis"},
+        {property: "Photosynthesis", match: "Leaf"},
+        {symbol: "R", name: "Root", match: "Absorbs water"},
+        {property: "Absorbs water", match: "Root"},
+        {symbol: "S", name: "Stem", match: "Carries food"},
+        {property: "Carries food", match: "Stem"},
+        {symbol: "F", name: "Flower", match: "Makes seeds"},
+        {property: "Makes seeds", match: "Flower"},
+        {symbol: "S", name: "Seed", match: "Grows plant"},
+        {property: "Grows plant", match: "Seed"},
+        {symbol: "F", name: "Fruit", match: "Has seeds"},
+        {property: "Has seeds", match: "Fruit"},
+        {symbol: "A", name: "Animal", match: "Move and eat"},
+        {property: "Move and eat", match: "Animal"}
+    ],
+    5: [
+        {symbol: "M", name: "Magnet", match: "Attracts metals"},
+        {property: "Attracts metals", match: "Magnet"},
+        {symbol: "C", name: "Compass", match: "Shows direction"},
+        {property: "Shows direction", match: "Compass"},
+        {symbol: "E", name: "Earth", match: "Spins"},
+        {property: "Spins", match: "Earth"},
+        {symbol: "M", name: "Moon", match: "Orbits Earth"},
+        {property: "Orbits Earth", match: "Moon"},
+        {symbol: "S", name: "Star", match: "Sun is one"},
+        {property: "Sun is one", match: "Star"},
+        {symbol: "P", name: "Planet", match: "Orbits stars"},
+        {property: "Orbits stars", match: "Planet"},
+        {symbol: "G", name: "Galaxy", match: "Billions of stars"},
+        {property: "Billions of stars", match: "Galaxy"}
+    ],
+    6: [
+        {symbol: "C", name: "Cell", match: "Basic life unit"},
+        {property: "Basic life unit", match: "Cell"},
+        {symbol: "T", name: "Tissue", match: "Group of cells"},
+        {property: "Group of cells", match: "Tissue"},
+        {symbol: "O", name: "Organ", match: "Body part"},
+        {property: "Body part", match: "Organ"},
+        {symbol: "S", name: "System", match: "Group of organs"},
+        {property: "Group of organs", match: "System"},
+        {symbol: "H", name: "Heart", match: "Pumps blood"},
+        {property: "Pumps blood", match: "Heart"},
+        {symbol: "L", name: "Lungs", match: "Breathe air"},
+        {property: "Breathe air", match: "Lungs"},
+        {symbol: "B", name: "Brain", match: "Controls body"},
+        {property: "Controls body", match: "Brain"}
+    ],
+    7: [
+        {symbol: "M", name: "Matter", match: "Has mass"},
+        {property: "Has mass", match: "Matter"},
+        {symbol: "A", name: "Atom", match: "Tiny particle"},
+        {property: "Tiny particle", match: "Atom"},
+        {symbol: "M", name: "Molecule", match: "Atoms joined"},
+        {property: "Atoms joined", match: "Molecule"},
+        {symbol: "E", name: "Element", match: "Pure substance"},
+        {property: "Pure substance", match: "Element"},
+        {symbol: "C", name: "Compound", match: "Elements joined"},
+        {property: "Elements joined", match: "Compound"},
+        {symbol: "M", name: "Mixture", match: "Two or more"},
+        {property: "Two or more", match: "Mixture"}
+    ],
+    8: [
+        {symbol: "F", name: "Force", match: "Push or pull"},
+        {property: "Push or pull", match: "Force"},
+        {symbol: "M", name: "Mass", match: "Amount of matter"},
+        {property: "Amount of matter", match: "Mass"},
+        {symbol: "W", name: "Weight", match: "Due to gravity"},
+        {property: "Due to gravity", match: "Weight"},
+        {symbol: "V", name: "Velocity", match: "Speed with direction"},
+        {property: "Speed with direction", match: "Velocity"},
+        {symbol: "A", name: "Acceleration", match: "Change in velocity"},
+        {property: "Change in velocity", match: "Acceleration"},
+        {symbol: "E", name: "Energy", match: "Ability to work"},
+        {property: "Ability to work", match: "Energy"}
+    ],
+    9: [
+        {symbol: "A", name: "Atom", match: "Nucleus + electrons"},
+        {property: "Nucleus + electrons", match: "Atom"},
+        {symbol: "P", name: "Proton", match: "Positive charge"},
+        {property: "Positive charge", match: "Proton"},
+        {symbol: "N", name: "Neutron", match: "No charge"},
+        {property: "No charge", match: "Neutron"},
+        {symbol: "E", name: "Electron", match: "Negative charge"},
+        {property: "Negative charge", match: "Electron"},
+        {symbol: "I", name: "Ion", match: "Charged atom"},
+        {property: "Charged atom", match: "Ion"},
+        {symbol: "I", name: "Isotope", match: "Same protons different neutrons"},
+        {property: "Same protons different neutrons", match: "Isotope"}
+    ],
+    10: [
+        {symbol: "C", name: "Carbon", match: "Basis of life"},
+        {property: "Basis of life", match: "Carbon"},
+        {symbol: "H", name: "Hydrogen", match: "In hydrocarbons"},
+        {property: "In hydrocarbons", match: "Hydrogen"},
+        {symbol: "O", name: "Oxygen", match: "For燃烧"},
+        {property: "For burning", match: "Oxygen"},
+        {symbol: "N", name: "Nitrogen", match: "In proteins"},
+        {property: "In proteins", match: "Nitrogen"},
+        {symbol: "C", name: "Carbohydrate", match: "Energy source"},
+        {property: "Energy source", match: "Carbohydrate"},
+        {symbol: "P", name: "Protein", match: "Muscles"},
+        {property: "Muscles", match: "Protein"}
+    ]
+};
+
+var cards = scienceDataByClass[classLevel] || scienceDataByClass[1];
+var gameCards = [];
+var flipped = [];
+var matched = 0;
+var score = 0;
+var gameTimer = null;
+var timeLeft = 60;
+
+function shuffle(array) {
+    for (var i = array.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+    }
+}
+
+function startScienceGame() {
+    gameCards = cards.slice();
+    shuffle(gameCards);
+    flipped = [];
+    matched = 0;
+    score = 0;
+    timeLeft = 60;
+    
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('game-area').style.display = 'block';
+    document.getElementById('result-screen').classList.remove('show');
+    
+    renderCards();
+    updateDisplay();
+    
+    gameTimer = setInterval(function() {
+        timeLeft--;
+        document.getElementById('timer').textContent = timeLeft;
+        if (timeLeft <= 0) {
+            clearInterval(gameTimer);
+            endGame();
+        }
+    }, 1000);
+}
+
+function renderCards() {
+    var grid = document.getElementById('cards-grid');
+    grid.innerHTML = '';
+    
+    for (var i = 0; i < gameCards.length; i++) {
+        var card = gameCards[i];
+        var div = document.createElement('div');
+        div.className = 'card';
+        div.dataset.index = i;
+        div.dataset.match = card.match;
+        
+        if (card.symbol) {
+            div.innerHTML = '<strong>' + card.symbol + '</strong><br>' + card.name;
+        } else {
+            div.innerHTML = '<strong>Property</strong><br>' + card.property;
+        }
+        
+        div.onclick = (function(d) {
+            return function() { flipCard(d); };
+        })(div);
+        
+        grid.appendChild(div);
+    }
+}
+
+function flipCard(card) {
+    if (!card.classList.contains('flipped') && !card.classList.contains('matched') && flipped.length < 2) {
+        card.classList.add('flipped');
+        flipped.push(card);
+        
+        if (flipped.length === 2) {
+            setTimeout(checkMatch, 500);
+        }
+    }
+}
+
+function checkMatch() {
+    var card1 = flipped[0];
+    var card2 = flipped[1];
+    
+    if (card1.dataset.match === card2.dataset.match && card1.dataset.index !== card2.dataset.index) {
+        card1.classList.add('matched');
+        card2.classList.add('matched');
+        matched++;
+        score += 25;
+    } else {
+        card1.classList.remove('flipped');
+        card2.classList.remove('flipped');
+    }
+    
+    flipped = [];
+    updateDisplay();
+    
+    if (matched === 8) {
+        clearInterval(gameTimer);
+        setTimeout(endGame, 500);
+    }
+}
+
+function updateDisplay() {
+    document.getElementById('score').textContent = score;
+    document.getElementById('pairs').textContent = matched;
+}
+
+function endGame() {
+    var xp = score + (matched * 10);
+    document.getElementById('final-pairs').textContent = matched;
+    document.getElementById('final-xp').textContent = '+' + xp + ' XP';
+    document.getElementById('result-screen').classList.add('show');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.lucide) lucide.createIcons();
+});
+</script>
+{% endblock %}

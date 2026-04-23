@@ -1,0 +1,72 @@
+{% load static %}
+<nav class="navbar">
+    <div class="nav-container glass glass-glow">
+        <div class="nav-logo">
+            <a href="{% url 'index' %}">
+                <span class="logo-text">Vidya<span class="logo-accent">Hub</span></span>
+            </a>
+        </div>
+
+        <div class="nav-links" id="navLinks">
+            <a href="{% url 'index' %}" class="nav-link">Home</a>
+            <a href="{% url 'course_index' %}" class="nav-link">Courses</a>
+            <a href="{% url 'game_dashboard' %}" class="nav-link">Games</a>
+            <a href="#" class="nav-link">About</a>
+        </div>
+
+        <div class="nav-actions">
+            {% if user.is_authenticated %}
+                <div class="dropdown">
+                    <a href="#" class="btn btn-secondary">
+                        <span class="user-name">{{ user.username }}</span>
+                    </a>
+                    <div class="dropdown-content">
+                        {% if user.profile.role == 'teacher' %}
+                            <a href="{% url 'teacher_dashboard' %}" class="dropdown-item">Teacher Dashboard</a>
+                        {% else %}
+                            <a href="{% url 'student_dashboard' %}" class="dropdown-item">Student Dashboard</a>
+                        {% endif %}
+                        <a href="#" class="dropdown-item">Profile Settings</a>
+                        <a href="{% url 'logout' %}" class="dropdown-item" style="color: #f87171;">Logout</a>
+                    </div>
+                </div>
+            {% else %}
+                <a href="{% url 'login' %}" class="btn btn-secondary">Login</a>
+                <div class="dropdown">
+                    <a href="#" class="btn btn-primary">Join Now</a>
+                    <div class="dropdown-content">
+                        <a href="{% url 'student_signup' %}" class="dropdown-item">I'm a Student</a>
+                        <a href="{% url 'teacher_signup' %}" class="dropdown-item">I'm a Teacher</a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle Menu">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+        </button>
+    </div>
+</nav>
+
+<div class="mobile-menu glass" id="mobileMenu">
+    {% if user.is_authenticated %}
+        {% if user.profile.role == 'teacher' %}
+            <a href="{% url 'teacher_dashboard' %}" class="mobile-link">Dashboard</a>
+        {% else %}
+            <a href="{% url 'student_dashboard' %}" class="mobile-link">Dashboard</a>
+        {% endif %}
+        <a href="{% url 'logout' %}" class="mobile-link" style="color: #f87171;">Logout</a>
+    {% else %}
+        <a href="{% url 'index' %}" class="mobile-link">Home</a>
+        <a href="{% url 'course_index' %}" class="mobile-link">Courses</a>
+        <a href="{% url 'game_dashboard' %}" class="mobile-link">Games</a>
+        <a href="#" class="mobile-link">About</a>
+        <div class="mobile-actions">
+            <a href="{% url 'login' %}" class="btn btn-secondary">Login</a>
+            <a href="{% url 'student_signup' %}" class="btn btn-primary mb-2">Join as Student</a>
+            <a href="{% url 'teacher_signup' %}" class="btn btn-outline">Join as Teacher</a>
+        </div>
+    {% endif %}
+</div>

@@ -1,0 +1,422 @@
+{% extends 'main/base.html' %}
+
+{% block content %}
+<section class="battle-section">
+    <div class="battle-container">
+        <!-- Matchmaking View -->
+        <div id="matchmaking-view" class="glass-card animate-scale text-center">
+            <div class="battle-icon-glow">
+                <i data-lucide="swords" style="width: 80px; height: 80px; color: #818cf8;"></i>
+            </div>
+            <h1 class="mt-4">Live Battle Arena</h1>
+            <p class="text-muted">Subject: <span class="text-white">{{ subject.name }}</span></p>
+            
+            <!-- Battle Stats -->
+            <div style="display: flex; justify-content: center; gap: 2rem; margin: 1.5rem 0;">
+                <div class="stat-mini">
+                    <i data-lucide="trophy" style="color: #fbbf24; width: 16px; height: 16px;"></i>
+                    <span>{{ request.user.profile.battles_won }} Wins</span>
+                </div>
+                <div class="stat-mini">
+                    <i data-lucide="flame" style="color: #ef4444; width: 16px; height: 16px;"></i>
+                    <span>{{ request.user.profile.battle_streak }} Streak</span>
+                </div>
+                <div class="stat-mini">
+                    <i data-lucide="swords" style="color: #10b981; width: 16px; height: 16px;"></i>
+                    <span>{{ request.user.profile.battles_played }} Played</span>
+                </div>
+            </div>
+            
+            <div id="queue-status" class="mt-4">
+                <div class="spinner mb-3"></div>
+                <p>Connecting to battle server...</p>
+                <p class="text-muted" style="font-size: 0.8rem; margin-top: 0.5rem;">Make sure socket server is running</p>
+            </div>
+            
+            <button id="cancel-btn" class="btn btn-secondary mt-4" onclick="window.history.back()">
+                Withdraw from Arena
+            </button>
+        </div>
+
+        <!-- Battle View -->
+        <div id="battle-view" style="display:none;" class="player-grid">
+            <div class="main-content">
+                <div class="battle-header glass mb-4">
+                    <div class="player-stats">
+                        <div class="player-info">
+                            <div class="avatar glass" id="my-avatar">{{ user.username|first|upper }}</div>
+                            <div class="name-score">
+                                <span class="name" id="my-name">You</span>
+                                <span class="score" id="my-score">0</span>
+                            </div>
+                        </div>
+                        <div class="vs">VS</div>
+                        <div class="player-info text-right">
+                            <div class="name-score">
+                                <span class="name" id="opponent-name">Opponent</span>
+                                <span class="score" id="opponent-score">0</span>
+                            </div>
+                            <div class="avatar glass opp-avatar" id="opp-avatar">?</div>
+                        </div>
+                    </div>
+                    <div class="battle-progress-bar">
+                        <div id="battle-progress" class="progress-fill"></div>
+                    </div>
+                </div>
+
+                <div id="question-card" class="glass-card battle-card">
+                    <div class="question-header">
+                        <span class="badge" id="q-counter">Question 1/5</span>
+                        <div id="timer-container" style="position: relative;">
+                            <div id="timer" class="timer-circle">15</div>
+                            <div id="timer-bar" style="position: absolute; bottom: -5px; left: 0; width: 100%; height: 3px; background: rgba(255,255,255,0.2); border-radius: 2px;">
+                                <div id="timer-fill" style="height: 100%; background: #10b981; width: 100%; border-radius: 2px; transition: width 1s linear;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <h2 id="question-text" class="mt-4 mb-4">Loading Question...</h2>
+                    <div id="options-grid" class="quiz-options grid-cols-2">
+                        <!-- Options injected here -->
+                    </div>
+                </div>
+                
+                <!-- Answer Feedback -->
+                <div id="answer-feedback" class="glass" style="display: none; padding: 1rem; border-radius: 1rem; margin-top: 1rem; text-align: center;">
+                    <span id="feedback-text"></span>
+                </div>
+            </div>
+
+            <!-- Battle Log / Real-time Feed -->
+            <aside class="player-sidebar glass">
+                <div class="sidebar-header">
+                    <h3>Battle Feed</h3>
+                </div>
+                <div id="battle-feed" class="sidebar-list p-3">
+                    <div class="feed-item event">Match started!</div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- End View -->
+        <div id="end-view" style="display:none;" class="glass-card text-center animate-scale">
+            <h1 id="result-title">Victory!</h1>
+            <div class="result-stats mt-4 mb-4" style="display: flex; justify-content: center; gap: 2rem;">
+                <div class="stat-item glass" style="padding: 1.5rem; border-radius: 1rem;">
+                    <span class="label">Your Score</span>
+                    <span class="value" id="final-score">0</span>
+                </div>
+                <div class="stat-item glass" style="padding: 1.5rem; border-radius: 1rem;">
+                    <span class="label">XP Earned</span>
+                    <span class="value" id="xp-earned" style="color: #fbbf24;">+0</span>
+                </div>
+            </div>
+            <div id="reward-banner" class="reward-banner" style="display: none;">
+                <h3><i data-lucide="gift"></i> New Badge Unlocked!</h3>
+                <p id="reward-text">You earned XP!</p>
+            </div>
+            <div id="result-badge" class="mt-4 mb-4">
+                <i data-lucide="trophy" style="width: 100px; height: 100px; color: #fbbf24;"></i>
+            </div>
+            <a href="{% url 'subject_detail' subject.grade.slug subject.slug %}" class="btn btn-primary">
+                Return to Course
+            </a>
+            <button onclick="location.reload()" class="btn btn-secondary ml-2">
+                Play Again
+            </button>
+        </div>
+    </div>
+</section>
+
+<style>
+.battle-section { padding: 8rem 2rem 4rem; min-height: 100vh; }
+.battle-container { max-width: 1200px; margin: 0 auto; }
+.battle-icon-glow { filter: drop-shadow(0 0 20px rgba(129, 140, 248, 0.4)); animation: float 3s ease-in-out infinite; }
+.battle-header { padding: 1.5rem 2.5rem; border-radius: 2rem; position: relative; overflow: hidden; }
+.player-stats { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.player-info { display: flex; align-items: center; gap: 1rem; }
+.avatar { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; background: var(--primary); }
+.opp-avatar { background: var(--secondary); }
+.name-score { display: flex; flex-direction: column; }
+.name { font-weight: 600; opacity: 0.8; }
+.score { font-size: 1.5rem; font-weight: 800; color: var(--primary); }
+.vs { font-weight: 900; font-size: 1.2rem; opacity: 0.3; }
+.battle-progress-bar { height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), #c084fc); transition: width 0.5s ease; }
+.timer-circle { width: 45px; height: 45px; border: 3px solid var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; transition: border-color 0.3s; }
+.timer-circle.warning { border-color: #f59e0b; }
+.timer-circle.danger { border-color: #ef4444; }
+.feed-item { padding: 0.5rem 0; border-bottom: 1px solid var(--glass-border); font-size: 0.9rem; animation: fadeInUp 0.3s ease; }
+.event { color: var(--accent); font-weight:600; }
+.stat-mini { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: #94a3b8; }
+.reward-banner { background: linear-gradient(135deg, rgba(251,191,36,0.2), rgba(245,158,11,0.1)); border: 1px solid rgba(251,191,36,0.3); padding: 1rem; border-radius: 1rem; margin-top: 1rem; text-align: center; }
+.reward-banner h3 { color: #fbbf24; font-size: 1rem; margin-bottom: 0.5rem; }
+.reward-banner p { font-size: 0.85rem; color: #cbd5e1; }
+.correct-opt { background: rgba(16, 185, 129, 0.3) !important; border-color: #10b981 !important; }
+.wrong-opt { background: rgba(239, 68, 68, 0.3) !important; border-color: #ef4444 !important; }
+</style>
+
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script>
+    // Connect to socket server
+    const socket = io('http://localhost:8001', {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 10
+    });
+    
+    const subjectId = {{ subject.id }};
+    const userId = {{ user.id }};
+    let currentRoom = null;
+    let myScore = 0;
+    let opponentScore = 0;
+    let timerInterval = null;
+    let timeLeft = 15;
+    let hasAnswered = false;
+    
+    // Connection handlers
+    socket.on('connect', () => {
+        console.log('Connected to battle server!');
+        document.getElementById('queue-status').innerHTML = `
+            <div class="spinner mb-3"></div>
+            <p>Searching for a worthy opponent...</p>
+        `;
+        socket.emit('join_battle', { subject_id: subjectId, user_id: userId });
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Disconnected');
+        addFeed('Connection lost. Please refresh.');
+    });
+
+    socket.on('connect_error', (error) => {
+        console.error('Connection error:', error);
+        document.getElementById('queue-status').innerHTML = `
+            <div style="color: #ef4444; padding: 2rem;">
+                <i data-lucide="alert-triangle" style="width: 48px; height: 48px;"></i>
+                <p class="mt-2">Battle server is offline!</p>
+                <p class="text-muted" style="font-size: 0.8rem;">Run: python socket_run.py</p>
+            </div>
+        `;
+        if (window.lucide) lucide.createIcons();
+    });
+
+    socket.on('queue_update', (data) => {
+        document.getElementById('queue-status').innerHTML = `
+            <div class="spinner mb-3"></div>
+            <p>${data.message}</p>
+            <p class="text-muted" style="font-size: 0.8rem; margin-top: 0.5rem;">You'll be matched with ${data.queue_type}</p>
+        `;
+    });
+
+    socket.on('match_found', (data) => {
+        currentRoom = data.room_id;
+        document.getElementById('opponent-name').innerText = data.opponent;
+        document.getElementById('my-name').innerText = data.your_username;
+        document.getElementById('matchmaking-view').style.display = 'none';
+        document.getElementById('battle-view').style.display = 'grid';
+        addFeed(`⚔️ Battle started against ${data.opponent}!`);
+        if (window.lucide) lucide.createIcons();
+    });
+
+    socket.on('next_question', (data) => {
+        hasAnswered = false;
+        myScore = data.your_score || myScore;
+        
+        document.getElementById('q-counter').innerText = `Question ${data.q_index + 1}/${data.total_q}`;
+        document.getElementById('question-text').innerText = data.question;
+        
+        // Update progress
+        const progress = ((data.q_index + 1) / data.total_q) * 100;
+        document.getElementById('battle-progress').style.width = progress + '%';
+        
+        // Build options
+        const optionsGrid = document.getElementById('options-grid');
+        optionsGrid.innerHTML = '';
+        
+        const letters = ['A', 'B', 'C', 'D'];
+        data.options.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'opt-btn glass';
+            btn.dataset.letter = letters[idx];
+            btn.innerHTML = `<span class="opt-letter">${letters[idx]}</span> ${opt}`;
+            btn.onclick = () => submitAnswer(btn, letters[idx]);
+            optionsGrid.appendChild(btn);
+        });
+        
+        // Hide feedback
+        document.getElementById('answer-feedback').style.display = 'none';
+        
+        // Start timer
+        startTimer(data.time_limit || 15);
+    });
+
+    socket.on('answer_result', (data) => {
+        clearInterval(timerInterval);
+        
+        // Update scores
+        const mySid = socket.id;
+        myScore = data.your_score || 0;
+        
+        // Find opponent score
+        const oppSid = Object.keys(data.scores || {}).find(s => s !== mySid);
+        opponentScore = data.scores ? (data.scores[oppSid] || 0) : opponentScore;
+        
+        document.getElementById('my-score').innerText = myScore;
+        document.getElementById('opponent-score').innerText = opponentScore;
+        
+        // Show feedback
+        if (data.is_correct) {
+            const pointsText = data.points === 10 ? '(+10 First!)' : '(+5)';
+            addFeed(`✅ Correct! ${pointsText}`);
+            showFeedback('correct', `Correct! +${data.points} points`);
+        } else if (data.timeout) {
+            addFeed('⏰ Time up!');
+            showFeedback('wrong', 'Time up!');
+        } else {
+            addFeed('❌ Wrong answer');
+            showFeedback('wrong', 'Wrong answer!');
+        }
+    });
+
+    socket.on('battle_end', (data) => {
+        clearInterval(timerInterval);
+        
+        const scores = data.scores;
+        const mySid = socket.id;
+        myScore = scores[mySid] || 0;
+        
+        const oppSid = Object.keys(scores).find(s => s !== mySid);
+        opponentScore = scores[oppSid] || 0;
+        
+        const isWinner = myScore > opponentScore;
+        const isDraw = myScore === opponentScore;
+
+        document.getElementById('battle-view').style.display = 'none';
+        document.getElementById('end-view').style.display = 'block';
+        document.getElementById('final-score').innerText = myScore;
+        
+        if (isWinner) {
+            document.getElementById('result-title').innerText = "🏆 Victory!";
+            submitBattleResult(myScore, opponentScore, true);
+        } else if (isDraw) {
+            document.getElementById('result-title').innerText = "🤝 Draw!";
+            submitBattleResult(myScore, opponentScore, false);
+        } else {
+            document.getElementById('result-title').innerText = "💔 Defeat!";
+            document.getElementById('result-badge').innerHTML = '<i data-lucide="frown" style="width: 100px; height: 100px; color: #94a3b8;"></i>';
+            submitBattleResult(myScore, opponentScore, false);
+        }
+        if (window.lucide) lucide.createIcons();
+    });
+
+    socket.on('opponent_left', (data) => {
+        addFeed('🎉 ' + data.message);
+        document.getElementById('battle-view').style.display = 'none';
+        document.getElementById('end-view').style.display = 'block';
+        document.getElementById('result-title').innerText = "🏆 Victory!";
+        document.getElementById('final-score').innerText = "W/O";
+        submitBattleResult(50, 0, true);
+    });
+
+    function submitAnswer(btn, letter) {
+        if (hasAnswered) return;
+        hasAnswered = true;
+        clearInterval(timerInterval);
+        
+        // Disable all buttons
+        document.querySelectorAll('.opt-btn').forEach(b => {
+            b.disabled = true;
+            b.style.opacity = '0.5';
+        });
+        
+        // Highlight selected
+        btn.style.borderColor = '#6366f1';
+        btn.style.background = 'rgba(99, 102, 241, 0.2)';
+        
+        socket.emit('submit_answer', { room_id: currentRoom, answer: letter });
+        addFeed(`You answered: ${letter}`);
+    }
+
+    function startTimer(seconds) {
+        clearInterval(timerInterval);
+        timeLeft = seconds;
+        const timerEl = document.getElementById('timer');
+        const timerFill = document.getElementById('timer-fill');
+        
+        timerEl.innerText = timeLeft;
+        timerEl.className = 'timer-circle';
+        
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            timerEl.innerText = timeLeft;
+            
+            // Update timer bar
+            const percent = (timeLeft / seconds) * 100;
+            timerFill.style.width = percent + '%';
+            
+            // Color changes
+            if (timeLeft <= 5) {
+                timerEl.className = 'timer-circle danger';
+                timerFill.style.background = '#ef4444';
+            } else if (timeLeft <= 10) {
+                timerEl.className = 'timer-circle warning';
+                timerFill.style.background = '#f59e0b';
+            }
+            
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                if (!hasAnswered) {
+                    socket.emit('time_up', { room_id: currentRoom });
+                }
+            }
+        }, 1000);
+    }
+
+    function submitBattleResult(score, oppScore, won) {
+        fetch("{% url 'battle_results_submit' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                score: score,
+                opponent_score: oppScore,
+                won: won
+            })
+        }).then(r => r.json()).then(data => {
+            document.getElementById('xp-earned').innerText = '+' + data.xp_earned + ' XP';
+            if (data.new_badges && data.new_badges.length > 0) {
+                document.getElementById('reward-banner').style.display = 'block';
+                document.getElementById('reward-text').innerText = 'Badge: ' + data.new_badges[0].name;
+                showAchievementToast(data.new_badges[0].name, data.new_badges[0].icon);
+            }
+        }).catch(e => {
+            document.getElementById('xp-earned').innerText = '+' + (won ? 50 : 10) + ' XP';
+        });
+    }
+
+    function showFeedback(type, text) {
+        const el = document.getElementById('answer-feedback');
+        const textEl = document.getElementById('feedback-text');
+        el.style.display = 'block';
+        el.style.background = type === 'correct' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)';
+        el.style.border = '1px solid ' + (type === 'correct' ? '#10b981' : '#ef4444');
+        textEl.innerText = text;
+        textEl.style.color = type === 'correct' ? '#10b981' : '#ef4444';
+    }
+
+    function addFeed(msg) {
+        const feed = document.getElementById('battle-feed');
+        const item = document.createElement('div');
+        item.className = 'feed-item';
+        item.innerText = msg;
+        feed.prepend(item);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.lucide) lucide.createIcons();
+    });
+</script>
+{% endblock %}

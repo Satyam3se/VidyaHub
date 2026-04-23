@@ -1,0 +1,223 @@
+{% extends 'main/base.html' %}
+
+{% block content %}
+<div class="profile-page" style="padding: 100px 20px 40px; min-height: 100vh;">
+    <div class="container" style="max-width: 800px;">
+        <!-- Profile Header -->
+        <div class="profile-header glass animate-up" style="padding: 2rem; border-radius: 1.5rem; text-align: center; margin-bottom: 2rem;">
+            <!-- Avatar -->
+            <div class="avatar-section" style="margin-bottom: 1.5rem;">
+                <div class="avatar-display" style="width: 120px; height: 120px; margin: 0 auto 1rem; border-radius: 50%; background: {% if profile.avatar == 'wizard' %}linear-gradient(135deg, #8b5cf6, #a855f7){% elif profile.avatar == 'scientist' %}linear-gradient(135deg, #06b6d4, #0891b2){% elif profile.avatar == 'explorer' %}linear-gradient(135deg, #f59e0b, #d97706){% elif profile.avatar == 'champion' %}linear-gradient(135deg, #ef4444, #dc2626){% elif profile.avatar == 'ninja' %}linear-gradient(135deg, #1f2937, #374151){% elif profile.avatar == 'astronaut' %}linear-gradient(135deg, #3b82f6, #1d4ed8){% elif profile.avatar == 'artist' %}linear-gradient(135deg, #ec4899, #db2777){% else %}linear-gradient(135deg, #6366f1, #818cf8){% endif %}; display: flex; align-items: center; justify-content: center; font-size: 3rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                    {% if profile.avatar == 'wizard' %}🧙
+                    {% elif profile.avatar == 'scientist' %}🔬
+                    {% elif profile.avatar == 'explorer' %}🧭
+                    {% elif profile.avatar == 'champion' %}🏆
+                    {% elif profile.avatar == 'ninja' %}🥷
+                    {% elif profile.avatar == 'astronaut' %}🚀
+                    {% elif profile.avatar == 'artist' %}🎨
+                    {% else %}🎓{% endif %}
+                </div>
+                <button class="btn btn-secondary" onclick="document.getElementById('avatar-modal').classList.add('show')" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                    <i data-lucide="edit-2" style="width: 16px; height: 16px;"></i> Change Avatar
+                </button>
+            </div>
+            
+            <h1 style="margin-bottom: 0.25rem;">{{ request.user.username }} <span class="level-title" style="font-size: 1rem; color: #818cf8;">{{ profile.get_level_title }}</span></h1>
+            <p class="text-muted">{{ profile.get_grade_display|default:profile.grade }} • {{ profile.get_target_exam_display|default:"General" }}</p>
+            
+            <!-- XP Bar -->
+            <div style="max-width: 400px; margin: 1.5rem auto; text-align: left;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.5rem;">
+                    <span>Level {{ profile.level }}</span>
+                    <span class="text-muted">{{ profile.xp }} / {{ profile.level * 500 }} XP</span>
+                </div>
+                <div style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden;">
+                    <div style="height: 100%; width: {{ profile.get_xp_progress }}%; background: linear-gradient(90deg, #6366f1, #818cf8); border-radius: 5px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem;">
+            <div class="stat-box glass" style="padding: 1.5rem; border-radius: 1rem; text-align: center;">
+                <i data-lucide="zap" style="color: #fbbf24; width: 24px; height: 24px; margin-bottom: 0.5rem;"></i>
+                <div style="font-size: 1.5rem; font-weight: 700;">{{ profile.xp }}</div>
+                <div class="text-muted" style="font-size: 0.75rem;">Total XP</div>
+            </div>
+            <div class="stat-box glass" style="padding: 1.5rem; border-radius: 1rem; text-align: center;">
+                <i data-lucide="flame" style="color: #ef4444; width: 24px; height: 24px; margin-bottom: 0.5rem;"></i>
+                <div style="font-size: 1.5rem; font-weight: 700;">{{ profile.streak }}</div>
+                <div class="text-muted" style="font-size: 0.75rem;">Day Streak</div>
+            </div>
+            <div class="stat-box glass" style="padding: 1.5rem; border-radius: 1rem; text-align: center;">
+                <i data-lucide="pen-line" style="color: #10b981; width: 24px; height: 24px; margin-bottom: 0.5rem;"></i>
+                <div style="font-size: 1.5rem; font-weight: 700;">{{ profile.total_quizzes }}</div>
+                <div class="text-muted" style="font-size: 0.75rem;">Quizzes</div>
+            </div>
+            <div class="stat-box glass" style="padding: 1.5rem; border-radius: 1rem; text-align: center;">
+                <i data-lucide="award" style="color: #8b5cf6; width: 24px; height: 24px; margin-bottom: 0.5rem;"></i>
+                <div style="font-size: 1.5rem; font-weight: 700;">{{ user_badges|length }}</div>
+                <div class="text-muted" style="font-size: 0.75rem;">Badges</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="profile-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+            <button class="tab-btn active" onclick="switchProfileTab('badges')" style="padding: 0.75rem 1.5rem; border-radius: 999px; background: #6366f1; border: none; color: #fff; cursor: pointer; font-weight: 600;">
+                <i data-lucide="award" style="width: 16px; height: 16px; vertical-align: middle;"></i> Badges
+            </button>
+            <button class="tab-btn" onclick="switchProfileTab('activity')" style="padding: 0.75rem 1.5rem; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #94a3b8; cursor: pointer; font-weight: 600;">
+                <i data-lucide="activity" style="width: 16px; height: 16px; vertical-align: middle;"></i> Activity
+            </button>
+            <button class="tab-btn" onclick="switchProfileTab('friends')" style="padding: 0.75rem 1.5rem; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #94a3b8; cursor: pointer; font-weight: 600;">
+                <i data-lucide="users" style="width: 16px; height: 16px; vertical-align: middle;"></i> Friends
+            </button>
+        </div>
+
+        <!-- Badges Tab -->
+        <div id="tab-badges" class="profile-tab">
+            <div class="badges-grid glass" style="padding: 1.5rem; border-radius: 1rem;">
+                {% if user_badges %}
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem;">
+                    {% for ub in user_badges %}
+                    <div class="badge-card" style="text-align: center; padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 1rem;">
+                        <div style="width: 50px; height: 50px; border-radius: 50%; background: {% if ub.achievement.rarity == 'legendary' %}linear-gradient(135deg, #f59e0b, #fbbf24){% elif ub.achievement.rarity == 'epic' %}linear-gradient(135deg, #8b5cf6, #a855f7){% elif ub.achievement.rarity == 'rare' %}linear-gradient(135deg, #3b82f6, #06b6d4){% else %}linear-gradient(135deg, #10b981, #34d399){% endif %}; margin: 0 auto 0.5rem; display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="{{ ub.achievement.icon }}" style="color: #fff; width: 24px; height: 24px;"></i>
+                        </div>
+                        <div style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.25rem;">{{ ub.achievement.name }}</div>
+                        <div style="font-size: 0.7rem; color: {% if ub.achievement.rarity == 'legendary' %}#fbbf24{% elif ub.achievement.rarity == 'epic' %}#a855f7{% elif ub.achievement.rarity == 'rare' %}#06b6d4{% else %}#10b981{% endif %};">{{ ub.achievement.rarity|title }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 2rem; color: #94a3b8;">
+                    <i data-lucide="award" style="width: 48px; height: 48px; margin-bottom: 1rem; opacity: 0.5;"></i>
+                    <p>No badges yet. Start playing to earn badges!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Activity Tab -->
+        <div id="tab-activity" class="profile-tab" style="display: none;">
+            <div class="activity-list glass" style="padding: 1.5rem; border-radius: 1rem;">
+                {% if xp_transactions %}
+                {% for tx in xp_transactions|slice:":20" %}
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--glass-border);">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(99,102,241,0.2); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="{% if tx.transaction_type == 'quiz' %}pen-line{% elif tx.transaction_type == 'game' %}gamepad-2{% elif tx.transaction_type == 'achievement' %}award{% elif tx.transaction_type == 'streak' %}flame{% else %}zap{% endif %}" style="width: 16px; height: 16px; color: #818cf8;"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600;">{{ tx.description }}</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">{{ tx.created_at|timesince }} ago</div>
+                        </div>
+                    </div>
+                    <div style="font-weight: 700; color: #10b981;">+{{ tx.amount }} XP</div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div style="text-align: center; padding: 2rem; color: #94a3b8;">
+                    <i data-lucide="activity" style="width: 48px; height: 48px; margin-bottom: 1rem; opacity: 0.5;"></i>
+                    <p>No activity yet. Start learning!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Friends Tab -->
+        <div id="tab-friends" class="profile-tab" style="display: none;">
+            <div class="friends-section glass" style="padding: 1.5rem; border-radius: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3>Friends ({{ friends|length }})</h3>
+                    <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                        <i data-lucide="user-plus" style="width: 16px; height: 16px;"></i> Add Friend
+                    </button>
+                </div>
+                {% if friends %}
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    {% for friend in friends %}
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; background: rgba(255,255,255,0.03); border-radius: 0.75rem;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #818cf8); display: flex; align-items: center; justify-content: center; font-weight: 700;">{{ friend.user.username.0|upper }}</div>
+                            <div>
+                                <div style="font-weight: 600;">{{ friend.user.username }}</div>
+                                <div class="text-muted" style="font-size: 0.75rem;">Level {{ friend.level }}</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" style="padding: 0.5rem; font-size: 0.8rem;">Challenge</button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 2rem; color: #94a3b8;">
+                    <i data-lucide="users" style="width: 48px; height: 48px; margin-bottom: 1rem; opacity: 0.5;"></i>
+                    <p>No friends yet. Add friends to challenge them!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Avatar Modal -->
+<div id="avatar-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content glass" style="padding: 2rem; border-radius: 1.5rem; max-width: 400px; margin: 100px auto;">
+        <h3 style="text-align: center; margin-bottom: 1.5rem;">Choose Your Avatar</h3>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+            {% for av in profile.AVATAR_CHOICES %}
+            <button onclick="changeAvatar('{{ av.0 }}')" style="padding: 1rem; border-radius: 1rem; background: {% if profile.avatar == av.0 %}rgba(99,102,241,0.3){% else %}rgba(255,255,255,0.05){% endif %}; border: 2px solid {% if profile.avatar == av.0 %}#6366f1{% else %}transparent{% endif %}; cursor: pointer;">
+                <div style="font-size: 1.5rem;">
+                    {% if av.0 == 'wizard' %}🧙
+                    {% elif av.0 == 'scientist' %}🔬
+                    {% elif av.0 == 'explorer' %}🧭
+                    {% elif av.0 == 'champion' %}🏆
+                    {% elif av.0 == 'ninja' %}🥷
+                    {% elif av.0 == 'astronaut' %}🚀
+                    {% elif av.0 == 'artist' %}🎨
+                    {% else %}🎓{% endif %}
+                </div>
+                <div style="font-size: 0.7rem; margin-top: 0.25rem;">{{ av.1 }}</div>
+            </button>
+            {% endfor %}
+        </div>
+        <button onclick="document.getElementById('avatar-modal').classList.remove('show')" class="btn btn-secondary" style="width: 100%;">Close</button>
+    </div>
+</div>
+
+<style>
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 999; }
+.modal-overlay.show { display: block; }
+</style>
+
+{% block extra_js %}
+<script>
+function switchProfileTab(tab) {
+    document.querySelectorAll('.profile-tab').forEach(t => t.style.display = 'none');
+    document.getElementById('tab-' + tab).style.display = 'block';
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.style.background = 'rgba(255,255,255,0.05)';
+        btn.style.color = '#94a3b8';
+        btn.style.border = '1px solid var(--glass-border)';
+    });
+    event.target.closest('.tab-btn').style.background = '#6366f1';
+    event.target.closest('.tab-btn').style.color = '#fff';
+    event.target.closest('.tab-btn').style.border = 'none';
+    if (window.lucide) lucide.createIcons();
+}
+
+function changeAvatar(avatar) {
+    fetch('/api/profile/avatar/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ avatar: avatar })
+    }).then(() => location.reload());
+}
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.lucide) lucide.createIcons();
+});
+</script>
+{% endblock %}
+{% endblock %}

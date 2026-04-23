@@ -1,0 +1,66 @@
+{% extends 'main/base.html' %}
+
+{% block content %}
+<section class="dashboard-wrapper">
+    <div class="dashboard-header">
+        <h1 class="hero-title">Select Your <span class="text-gradient">Class</span></h1>
+        <p class="hero-subtitle">Choose your grade to explore subjects and start learning.</p>
+    </div>
+
+    <div class="stats-grid">
+        {% for grade in grades %}
+        <a href="{% url 'grade_detail' grade.slug %}" class="glass glass-card stat-card grade-card">
+            <div class="grade-number">{{ grade.name|slice:"6:" }}</div>
+            <div class="stat-label">{{ grade.name }}</div>
+            <div class="grade-hover-text">Explore Subjects <i data-lucide="arrow-right"></i></div>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+
+<style>
+    .grade-card {
+        transition: var(--transition);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem 2rem;
+        text-decoration: none;
+    }
+    
+    .grade-card:hover {
+        transform: translateY(-10px) scale(1.05);
+        border-color: var(--primary);
+        box-shadow: 0 15px 40px rgba(99, 102, 241, 0.3);
+    }
+    
+    .grade-number {
+        font-size: 4rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--primary), #c084fc);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+    }
+    
+    .grade-hover-text {
+        margin-top: 1.5rem;
+        font-size: 0.9rem;
+        color: var(--primary);
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        opacity: 0;
+        transform: translateY(10px);
+        transition: var(--transition);
+    }
+    
+    .grade-card:hover .grade-hover-text {
+        opacity: 1;
+        transform: translateY(0);
+    }
+</style>
+{% endblock %}

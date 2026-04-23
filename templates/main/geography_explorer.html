@@ -1,0 +1,234 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="game-page">
+    <div class="game-container glass">
+        <div class="game-header">
+            <div class="game-title">
+                <h1><i data-lucide="globe" class="title-icon"></i> Geography Explorer</h1>
+                <p>Test your knowledge of countries and capitals!</p>
+            </div>
+            <div class="game-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Round</span>
+                    <span class="stat-value" id="round">1</span>/10
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Streak</span>
+                    <span class="stat-value" id="streak">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="start-screen" class="game-start">
+            <div class="start-content">
+                <div class="start-icon" style="background: linear-gradient(135deg, #f59e0b, #fbbf24);">
+                    <i data-lucide="globe"></i>
+                </div>
+                <h2>Geography Explorer</h2>
+                <p>Test your knowledge of world capitals!</p>
+                <ul class="start-info">
+                    <li>🎯 15 XP per correct answer</li>
+                    <li>🔥 Bonus for streaks</li>
+                    <li>🌍 10 countries to identify</li>
+                </ul>
+                <button onclick="startGeoGame()" class="start-button">
+                    <i data-lucide="play"></i> Start Game
+                </button>
+            </div>
+        </div>
+
+        <div id="game-area" style="display:none;" class="game-play">
+            <div class="question-box">
+                <p class="qlabel">What is the capital of:</p>
+                <p class="country" id="country">?</p>
+            </div>
+            
+            <div class="options" id="options"></div>
+        </div>
+
+        <div id="result-screen" class="result-modal">
+            <div class="result-content glass">
+                <div class="result-icon" style="background: linear-gradient(135deg, #f59e0b, #fbbf24);">
+                    <i data-lucide="trophy"></i>
+                </div>
+                <h2>Game Complete!</h2>
+                <div class="result-stats">
+                    <div class="result-stat">
+                        <span class="label">Score</span>
+                        <span class="value" id="final-score">0</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="label">XP Earned</span>
+                        <span class="value highlight" id="final-xp">+0</span>
+                    </div>
+                </div>
+                <div class="result-actions">
+                    <button onclick="location.reload()" class="btn btn-primary">
+                        <i data-lucide="refresh-cw"></i> Play Again
+                    </button>
+                    <a href="{% url 'game_dashboard' %}" class="btn btn-outline">
+                        <i data-lucide="home"></i> Back to Games
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.game-page { padding: 100px 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.game-container { max-width: 600px; width: 100%; padding: 2rem; border-radius: 2rem; text-align: center; }
+.game-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; text-align: left; }
+.game-title h1 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; margin-bottom: 0.25rem; }
+.title-icon { color: #fbbf24; }
+.game-title p { color: #94a3b8; font-size: 0.9rem; }
+.game-stats { display: flex; gap: 1rem; }
+.stat-item { background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 0.75rem; text-align: center; }
+.stat-item .stat-label { display: block; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
+.stat-item .stat-value { font-size: 1.25rem; font-weight: 700; }
+
+.game-start { padding: 3rem 1rem; }
+.start-content { text-align: center; }
+.start-icon { width: 80px; height: 80px; background: linear-gradient(135deg, #f59e0b, #fbbf24); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+.start-icon i { width: 40px; height: 40px; color: #fff; }
+.start-content h2 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+.start-content > p { color: #94a3b8; margin-bottom: 1.5rem; }
+.start-info { list-style: none; padding: 0; margin-bottom: 2rem; }
+.start-info li { padding: 0.5rem; color: #cbd5e1; }
+.start-button { display: inline-flex; align-items: center; gap: 0.5rem; padding: 1rem 2.5rem; font-size: 1.1rem; font-weight: 600; background: linear-gradient(135deg, #f59e0b, #fbbf24); border: none; border-radius: 1rem; color: #fff; cursor: pointer; transition: all 0.3s ease; }
+.start-button:hover { transform: scale(1.05); box-shadow: 0 8px 24px rgba(245,158,11,0.4); }
+
+.game-play { padding: 1rem 0; }
+.question-box { margin: 2rem 0; }
+.qlabel { color: #94a3b8; font-size: 1rem; margin-bottom: 0.5rem; }
+.country { color: #fff; font-size: 2.5rem; font-weight: 700; }
+.options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; max-width: 500px; margin: 0 auto; }
+.option-btn { padding: 1.25rem; font-size: 1rem; font-weight: 600; background: rgba(255,255,255,0.05); border: 2px solid var(--glass-border); border-radius: 1rem; color: #fff; cursor: pointer; transition: all 0.2s ease; }
+.option-btn:hover { background: rgba(245,158,11,0.2); border-color: #fbbf24; transform: scale(1.02); }
+
+.result-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 100; }
+.result-modal.show { display: flex; }
+.result-content { padding: 3rem; border-radius: 2rem; text-align: center; max-width: 400px; }
+.result-icon { width: 70px; height: 70px; background: linear-gradient(135deg, #f59e0b, #fbbf24); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+.result-icon i { width: 35px; height: 35px; color: #fff; }
+.result-content h2 { font-size: 2rem; margin-bottom: 1.5rem; }
+.result-stats { display: flex; justify-content: center; gap: 2rem; margin-bottom: 2rem; }
+.result-stat { text-align: center; }
+.result-stat .label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem; }
+.result-stat .value { font-size: 1.75rem; font-weight: 700; }
+.result-stat .value.highlight { color: #fbbf24; }
+.result-actions { display: flex; flex-direction: column; gap: 0.75rem; }
+.result-actions .btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.result-actions .btn i { width: 18px; height: 18px; }
+</style>
+
+<script>
+var geoData = [
+    {country: "France", capital: "Paris"},
+    {country: "Japan", capital: "Tokyo"},
+    {country: "Brazil", capital: "Brasilia"},
+    {country: "Australia", capital: "Canberra"},
+    {country: "Egypt", capital: "Cairo"},
+    {country: "Canada", capital: "Ottawa"},
+    {country: "India", capital: "New Delhi"},
+    {country: "Germany", capital: "Berlin"},
+    {country: "China", capital: "Beijing"},
+    {country: "Italy", capital: "Rome"},
+    {country: "Spain", capital: "Madrid"},
+    {country: "Mexico", capital: "Mexico City"},
+    {country: "South Korea", capital: "Seoul"},
+    {country: "Thailand", capital: "Bangkok"},
+    {country: "Turkey", capital: "Ankara"}
+];
+
+var questions = [];
+var currentIndex = 0;
+var currentQuestion = {};
+var score = 0;
+var streak = 0;
+var correct = 0;
+
+function startGeoGame() {
+    questions = geoData.slice().sort(function() { return Math.random() - 0.5; }).slice(0, 10);
+    currentIndex = 0;
+    score = 0;
+    streak = 0;
+    correct = 0;
+    
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('game-area').style.display = 'block';
+    document.getElementById('result-screen').classList.remove('show');
+    
+    loadQuestion();
+}
+
+function loadQuestion() {
+    if (currentIndex >= questions.length) {
+        endGame();
+        return;
+    }
+    
+    currentQuestion = questions[currentIndex];
+    document.getElementById('country').textContent = currentQuestion.country;
+    document.getElementById('round').textContent = (currentIndex + 1);
+    
+    var options = [currentQuestion.capital];
+    var used = {};
+    used[currentQuestion.capital] = true;
+    
+    while (options.length < 4) {
+        var random = geoData[Math.floor(Math.random() * geoData.length)];
+        if (!used[random.capital]) {
+            options.push(random.capital);
+            used[random.capital] = true;
+        }
+    }
+    options.sort(function() { return Math.random() - 0.5; });
+    
+    var grid = document.getElementById('options');
+    grid.innerHTML = '';
+    for (var i = 0; i < options.length; i++) {
+        var btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.textContent = options[i];
+        btn.onclick = (function(opt) {
+            return function() { checkAnswer(opt); };
+        })(options[i]);
+        grid.appendChild(btn);
+    }
+}
+
+function checkAnswer(opt) {
+    if (opt === currentQuestion.capital) {
+        correct++;
+        streak++;
+        score += 15 + (streak * 2);
+    } else {
+        streak = 0;
+    }
+    
+    document.getElementById('score').textContent = score;
+    document.getElementById('streak').textContent = streak;
+    currentIndex++;
+    
+    setTimeout(loadQuestion, 500);
+}
+
+function endGame() {
+    var xp = score;
+    document.getElementById('final-score').textContent = score;
+    document.getElementById('final-xp').textContent = '+' + xp + ' XP';
+    document.getElementById('result-screen').classList.add('show');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.lucide) lucide.createIcons();
+});
+</script>
+{% endblock %}

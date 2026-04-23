@@ -1,0 +1,214 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<section class="game-arena">
+    <div class="container">
+        <div class="game-header glass animate-down">
+            <div class="game-info">
+                <span class="badge badge-primary">Word Scramble</span>
+                <h2>Unscramble the Term</h2>
+                <p class="text-muted">Rearrange the letters to find the educational word!</p>
+            </div>
+            <div class="game-stats">
+                <div class="stat-item glass">
+                    <span class="label">Score</span>
+                    <span id="game-score">0</span>
+                </div>
+                <div class="stat-item glass">
+                    <span class="label">Time</span>
+                    <span id="game-timer">60s</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="scramble-card glass mt-4 animate-scale">
+            <div class="word-display" id="scrambled-word">
+                <!-- Word letters will be here -->
+            </div>
+            
+            <div class="hint-box mt-3" id="word-hint">
+                <i data-lucide="help-circle"></i> <span>Hint: Loading...</span>
+            </div>
+
+            <div class="input-area mt-4">
+                <input type="text" id="guess-input" placeholder="Type your answer..." class="glass-input" autocomplete="off">
+                <div class="game-actions mt-3">
+                    <button id="check-btn" class="btn btn-primary w-100">Check Answer</button>
+                    <button id="skip-btn" class="btn btn-secondary w-100 mt-2">Skip Word (-5s)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Overlay -->
+        <div id="result-screen" class="result-overlay hidden glass">
+            <div class="result-content animate-scale">
+                <div class="victory-icon">
+                    <i data-lucide="trophy"></i>
+                </div>
+                <h1>Time's Up!</h1>
+                <p>You unscrambled <span id="final-count">0</span> words correctly.</p>
+                <div class="reward-box glass mt-4">
+                    <div class="reward-item">
+                        <i data-lucide="zap" class="text-warning"></i>
+                        <span id="final-xp">+0 XP</span>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <a href="{% url 'game_dashboard' %}" class="btn btn-primary glass-glow">Back to Games</a>
+                    <button onclick="location.reload()" class="btn btn-secondary glass ms-2">Play Again</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.game-arena { padding: 8rem 0 4rem; min-height: 100vh; }
+.game-header { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2.5rem; border-radius: 1.5rem; }
+.game-stats { display: flex; gap: 1rem; }
+.stat-item { padding: 0.5rem 1.25rem; border-radius: 1rem; text-align: center; }
+.stat-item .label { display: block; font-size: 0.7rem; color: var(--text-muted); }
+.stat-item span:last-child { font-size: 1.25rem; font-weight: 800; color: var(--primary); }
+
+.scramble-card {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 3rem;
+    border-radius: 2rem;
+    text-align: center;
+}
+
+.word-display {
+    font-size: 3rem;
+    font-weight: 900;
+    letter-spacing: 1rem;
+    color: #fff;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    text-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+}
+
+.hint-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 999px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.hint-box i { width: 16px; height: 16px; }
+
+.glass-input {
+    width: 100%;
+    font-size: 1.5rem;
+    text-align: center;
+    padding: 1rem;
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid var(--glass-border);
+    color: #fff;
+    transition: all 0.3s;
+}
+.glass-input:focus { border-color: var(--primary); outline: none; background: rgba(255, 255, 255, 0.08); }
+
+.result-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(15, 23, 42, 0.9); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
+.result-content { text-align: center; padding: 3rem; }
+.victory-icon { width: 80px; height: 80px; background: rgba(251, 191, 36, 0.2); color: #fbbf24; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+
+@media (max-width: 600px) {
+    .game-header { flex-direction: column; gap: 1rem; padding: 1.5rem; }
+    .word-display { font-size: 2rem; letter-spacing: 0.5rem; }
+}
+</style>
+
+{% block extra_js %}
+<script>
+    const words = [
+        { word: "PHOTOSYNTHESIS", hint: "Process by which plants make food" },
+        { word: "GRAVITY", hint: "Force that pulls objects toward Earth" },
+        { word: "CELL", hint: "Basic unit of life" },
+        { word: "ATOM", hint: "Smallest particle of an element" },
+        { word: "PYTHAGORAS", hint: "Famous Greek mathematician" },
+        { word: "DEMOCRACY", hint: "System of government by the people" },
+        { word: "RENAISSANCE", hint: "Period of European cultural rebirth" },
+        { word: "GALAXY", hint: "Huge system of stars and cosmic dust" },
+        { word: "FRACTION", hint: "Part of a whole number" },
+        { word: "VOCABULARY", hint: "Body of words used in a language" }
+    ];
+
+    let currentWord = "";
+    let score = 0;
+    let timeLeft = 60;
+    let timer;
+
+    function initGame() {
+        const wordObj = words[Math.floor(Math.random() * words.length)];
+        currentWord = wordObj.word;
+        
+        // Scramble the word
+        let scrambled = currentWord.split('').sort(() => Math.random() - 0.5).join('');
+        if (scrambled === currentWord) return initGame();
+        
+        document.getElementById('scrambled-word').textContent = scrambled;
+        document.getElementById('word-hint').querySelector('span').textContent = `Hint: ${wordObj.hint}`;
+        document.getElementById('guess-input').value = "";
+        document.getElementById('guess-input').focus();
+    }
+
+    function startTimer() {
+        timer = setInterval(() => {
+            if (timeLeft > 0) {
+                timeLeft--;
+                document.getElementById('game-timer').textContent = `${timeLeft}s`;
+            } else {
+                endGame();
+            }
+        }, 1000);
+    }
+
+    function checkAnswer() {
+        const guess = document.getElementById('guess-input').value.toUpperCase().trim();
+        if (guess === currentWord) {
+            score++;
+            document.getElementById('game-score').textContent = score;
+            initGame();
+        } else {
+            document.getElementById('guess-input').classList.add('shake');
+            setTimeout(() => document.getElementById('guess-input').classList.remove('shake'), 500);
+        }
+    }
+
+    function endGame() {
+        clearInterval(timer);
+        const xp = score * 10;
+        document.getElementById('final-count').textContent = score;
+        document.getElementById('final-xp').textContent = `+${xp} XP`;
+        document.getElementById('result-screen').classList.remove('hidden');
+
+        // Award XP
+        fetch('/api/game/results/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ xp: xp, game: 'word_scramble' })
+        });
+    }
+
+    document.getElementById('check-btn').onclick = checkAnswer;
+    document.getElementById('guess-input').onkeyup = (e) => { if (e.key === 'Enter') checkAnswer(); };
+    document.getElementById('skip-btn').onclick = () => {
+        if (timeLeft > 5) {
+            timeLeft -= 5;
+            initGame();
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initGame();
+        startTimer();
+    });
+</script>
+{% endblock %}
+{% endblock %}

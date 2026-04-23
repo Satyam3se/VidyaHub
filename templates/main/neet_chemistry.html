@@ -1,0 +1,361 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="game-page">
+    <div class="game-container glass">
+        <div class="game-header">
+            <div class="game-title">
+                <h1><i data-lucide="flask-conical" class="title-icon"></i> NEET Chemistry</h1>
+                <p>Medical Entrance Preparation</p>
+            </div>
+            <div class="game-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Question</span>
+                    <span class="stat-value" id="qnum">1</span>/20
+                </div>
+                <div class="stat-item timer">
+                    <span class="stat-label">Time</span>
+                    <span class="stat-value" id="timer">600</span>s
+                </div>
+            </div>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="background: linear-gradient(90deg, #ec4899, #f472b6);"></div>
+            </div>
+            <div class="progress-dots" id="progress-dots"></div>
+        </div>
+
+        <div id="start-screen" class="game-start">
+            <div class="start-content">
+                <div class="start-icon" style="background: linear-gradient(135deg, #ec4899, #f472b6);">
+                    <i data-lucide="flask-conical"></i>
+                </div>
+                <h2>NEET Chemistry Challenge</h2>
+                <p>20 questions from Organic, Inorganic & Physical Chemistry!</p>
+                <ul class="start-info">
+                    <li>🎯 20 XP per correct answer</li>
+                    <li>⏱️ 10 minutes</li>
+                    <li>🧪 Medical chemistry prep</li>
+                </ul>
+                <div class="category-badges">
+                    <span class="cat-badge">Organic</span>
+                    <span class="cat-badge">Inorganic</span>
+                    <span class="cat-badge">Physical</span>
+                    <span class="cat-badge">Biomolecules</span>
+                </div>
+                <button onclick="startGame()" class="start-button">
+                    <i data-lucide="play"></i> Start NEET Chemistry
+                </button>
+            </div>
+        </div>
+
+        <div id="game-area" style="display:none;" class="game-play">
+            <div class="question-card">
+                <div class="question-number">Question <span id="q-num">1</span></div>
+                <p class="question-text" id="question">Loading question...</p>
+                <div class="question-category" id="q-category">Chemistry</div>
+            </div>
+            
+            <div class="options" id="options"></div>
+        </div>
+
+        <div id="result-screen" class="result-modal">
+            <div class="result-content glass">
+                <div class="result-animation">
+                    <div class="result-icon" style="background: linear-gradient(135deg, #ec4899, #f472b6);">
+                        <i data-lucide="vial"></i>
+                    </div>
+                </div>
+                
+                <h2 id="result-title">Exam Complete!</h2>
+                <p id="result-subtitle">Great effort!</p>
+                
+                <div class="result-stats-grid">
+                    <div class="result-stat-box">
+                        <span class="stat-icon"><i data-lucide="check-circle"></i></span>
+                        <span class="stat-num" id="correct-count">0</span>
+                        <span class="stat-label">Correct</span>
+                    </div>
+                    <div class="result-stat-box">
+                        <span class="stat-icon"><i data-lucide="x-circle"></i></span>
+                        <span class="stat-num" id="wrong-count">0</span>
+                        <span class="stat-label">Wrong</span>
+                    </div>
+                    <div class="result-stat-box">
+                        <span class="stat-icon"><i data-lucide="zap"></i></span>
+                        <span class="stat-num highlight" id="final-xp">+0</span>
+                        <span class="stat-label">XP Earned</span>
+                    </div>
+                    <div class="result-stat-box">
+                        <span class="stat-icon"><i data-lucide="target"></i></span>
+                        <span class="stat-num" id="accuracy">0%</span>
+                        <span class="stat-label">Accuracy</span>
+                    </div>
+                </div>
+                
+                <div class="result-actions">
+                    <button onclick="location.reload()" class="btn btn-primary">
+                        <i data-lucide="refresh-cw"></i> Try Again
+                    </button>
+                    <a href="{% url 'game_dashboard' %}" class="btn btn-outline">
+                        <i data-lucide="home"></i> Back to Games
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.game-page { padding: 100px 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.game-container { max-width: 750px; width: 100%; padding: 2rem; border-radius: 2rem; text-align: center; }
+.game-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; text-align: left; flex-wrap: wrap; gap: 1rem; }
+.game-title h1 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; margin-bottom: 0.25rem; }
+.title-icon { color: #f472b6; }
+.game-title p { color: #94a3b8; font-size: 0.9rem; }
+.game-stats { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.stat-item { background: rgba(255,255,255,0.05); padding: 0.5rem 0.75rem; border-radius: 0.75rem; text-align: center; min-width: 70px; }
+.stat-item .stat-label { display: block; font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; }
+.stat-item .stat-value { font-size: 1.1rem; font-weight: 700; }
+.stat-item.timer .stat-value { color: #ef4444; }
+
+.progress-container { margin-bottom: 1.5rem; }
+.progress-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 0.75rem; }
+.progress-fill { height: 100%; border-radius: 3px; width: 0%; transition: width 0.3s ease; }
+.progress-dots { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.progress-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+.progress-dot.correct { background: #10b981; }
+.progress-dot.wrong { background: #ef4444; }
+.progress-dot.current { background: #f472b6; transform: scale(1.3); }
+
+.game-start { padding: 2rem 1rem; }
+.start-content { text-align: center; }
+.start-icon { width: 90px; height: 90px; background: linear-gradient(135deg, #ec4899, #f472b6); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; box-shadow: 0 10px 30px rgba(236,72,153,0.3); }
+.start-icon i { width: 45px; height: 45px; color: #fff; }
+.start-content h2 { font-size: 2rem; margin-bottom: 0.5rem; }
+.start-content > p { color: #94a3b8; margin-bottom: 1.5rem; }
+.start-info { list-style: none; padding: 0; margin-bottom: 1.5rem; }
+.start-info li { padding: 0.5rem; color: #cbd5e1; }
+
+.category-badges { display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 2rem; }
+.cat-badge { padding: 0.35rem 0.75rem; background: rgba(236,72,153,0.15); color: #f472b6; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+
+.start-button { display: inline-flex; align-items: center; gap: 0.5rem; padding: 1rem 2.5rem; font-size: 1.1rem; font-weight: 600; background: linear-gradient(135deg, #ec4899, #f472b6); border: none; border-radius: 1rem; color: #fff; cursor: pointer; transition: all 0.3s ease; }
+.start-button:hover { transform: scale(1.05); box-shadow: 0 10px 30px rgba(236,72,153,0.4); }
+
+.game-play { padding: 1rem 0; }
+.question-card { background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 1.5rem; border-radius: 1.5rem; margin-bottom: 1.5rem; text-align: left; }
+.question-number { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
+.question-text { color: #fff; font-size: 1.25rem; font-weight: 600; line-height: 1.6; margin-bottom: 0.75rem; }
+.question-category { display: inline-block; padding: 0.25rem 0.75rem; background: rgba(236,72,153,0.15); color: #f472b6; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+
+.options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+.option-btn { position: relative; padding: 1.25rem; font-size: 1rem; font-weight: 600; background: rgba(255,255,255,0.05); border: 2px solid var(--glass-border); border-radius: 1rem; color: #fff; cursor: pointer; transition: all 0.2s ease; text-align: left; }
+.option-btn:hover:not(:disabled) { background: rgba(236,72,153,0.15); border-color: #ec4899; transform: translateY(-2px); }
+.option-btn:disabled { cursor: default; }
+.option-btn.correct { background: rgba(16,185,129,0.3); border-color: #10b981; }
+.option-btn.wrong { background: rgba(239,68,68,0.3); border-color: #ef4444; }
+.option-btn .option-letter { position: absolute; left: 1rem; top: 1rem; width: 24px; height: 24px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+
+.result-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(10px); }
+.result-modal.show { display: flex; }
+.result-content { padding: 2.5rem; border-radius: 2rem; text-align: center; max-width: 500px; width: 100%; }
+
+.result-animation { margin-bottom: 1.5rem; }
+.result-icon { width: 80px; height: 80px; background: linear-gradient(135deg, #ec4899, #f472b6); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 10px 40px rgba(236,72,153,0.4); }
+.result-icon i { width: 40px; height: 40px; color: #fff; }
+
+.result-header h2 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+.result-header p { color: #94a3b8; margin-bottom: 1.5rem; }
+
+.result-stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.result-stat-box { background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 1rem; text-align: center; }
+.result-stat-box .stat-icon { display: flex; justify-content: center; margin-bottom: 0.5rem; color: #94a3b8; }
+.result-stat-box .stat-num { display: block; font-size: 1.5rem; font-weight: 700; }
+.result-stat-box .stat-num.highlight { color: #f472b6; }
+.result-stat-box .stat-label { font-size: 0.75rem; color: #94a3b8; }
+
+.result-actions { display: flex; flex-direction: column; gap: 0.75rem; }
+.result-actions .btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.result-actions .btn i { width: 18px; height: 18px; }
+
+@media (max-width: 600px) {
+    .game-header { flex-direction: column; }
+    .options { grid-template-columns: 1fr; }
+}
+</style>
+
+<script>
+var neetChemistryQuestions = [
+    {q: "pH of blood is approximately", c: "Physical", o: ["7.4", "7.0", "6.8", "8.0"], a: 0},
+    {q: "Hemoglobin contains which metal?", c: "Inorganic", o: ["Iron (Fe)", "Copper (Cu)", "Zinc (Zn)", "Magnesium (Mg)"], a: 0},
+    {q: "Carbohydrates are made of", c: "Organic", o: ["C, H, O", "C, H", "C, O", "H, O"], a: 0},
+    {q: "pH of acid rain is approximately", c: "Physical", o: ["5.6", "7.0", "4.0", "3.0"], a: 0},
+    {q: "Common salt is chemically", c: "Inorganic", o: ["NaCl", "KCl", "Na2CO3", "K2CO3"], a: 0},
+    {q: "Urea is excreted by", c: "Organic", o: ["Mammals", "Birds", "Reptiles", "Fish"], a: 0},
+    {q: "Vitamin B12 contains which element?", c: "Biomolecules", o: ["Cobalt (Co)", "Iron (Fe)", "Copper (Cu)", "Zinc (Zn)"], a: 0},
+    {q: "Glucose test uses", c: "Organic", o: ["Benedict's solution", "Fehling's solution", "Tollen's reagent", "All of these"], a: 3},
+    {q: "pH of milk is approximately", c: "Physical", o: ["7.0", "6.5", "5.0", "8.0"], a: 1},
+    {q: "Enzymes are", c: "Biomolecules", o: ["Proteins", "Lipids", "Carbohydrates", "Nucleic acids"], a: 0},
+    {q: "The pH of human skin is slightly", c: "Physical", o: ["Acidic", "Basic", "Neutral", "Alkaline"], a: 0},
+    {q: "Which vitamin is water soluble?", c: "Biomolecules", o: ["Vitamin A", "Vitamin D", "Vitamin C", "Vitamin K"], a: 2},
+    {q: "Baking soda is", c: "Inorganic", o: ["NaHCO3", "Na2CO3", "NaOH", "KOH"], a: 0},
+    {q: "Protein is formed by joining of", c: "Biomolecules", o: ["Amino acids", "Fatty acids", "Sugars", "Nucleotides"], a: 0},
+    {q: "DNA contains which sugar?", c: "Biomolecules", o: ["Deoxyribose", "Ribose", "Glucose", "Sucrose"], a: 0},
+    {q: "pH of gastric juice is", c: "Physical", o: ["1-2", "7", "5-6", "9-10"], a: 0},
+    {q: "Chlorophyll contains", c: "Biomolecules", o: ["Magnesium", "Iron", "Calcium", "Zinc"], a: 0},
+    {q: "Bleaching powder is", c: "Inorganic", o: ["Ca(OCl)2", "CaCl2", "CaCO3", "CaSO4"], a: 0},
+    {q: "pH of lime water is", c: "Physical", o: ["Basic", "Acidic", "Neutral", "Variable"], a: 0},
+    {q: "Which is not a carbohydrate?", c: "Organic", o: ["Glucose", "Fructose", "Lipid", "Sucrose"], a: 2},
+];
+
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+var questions = [];
+var currentQ = {};
+var qIndex = 0;
+var score = 0;
+var correct = 0;
+var wrong = 0;
+var timer = null;
+var timeLeft = 600;
+
+function startGame() {
+    questions = shuffleArray([...neetChemistryQuestions]).slice(0, 20);
+    qIndex = 0;
+    score = 0;
+    correct = 0;
+    wrong = 0;
+    timeLeft = 600;
+    
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('game-area').style.display = 'block';
+    document.getElementById('result-screen').classList.remove('show');
+    
+    const dotsContainer = document.getElementById('progress-dots');
+    dotsContainer.innerHTML = '';
+    for (let i = 0; i < 20; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'progress-dot';
+        dot.id = 'dot-' + i;
+        dotsContainer.appendChild(dot);
+    }
+    
+    loadQuestion();
+    startTimer();
+}
+
+function startTimer() {
+    timer = setInterval(function() {
+        timeLeft--;
+        document.getElementById('timer').textContent = timeLeft;
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            endGame();
+        }
+    }, 1000);
+}
+
+function loadQuestion() {
+    if (qIndex >= questions.length) {
+        endGame();
+        return;
+    }
+    
+    currentQ = questions[qIndex];
+    document.getElementById('progress-fill').style.width = ((qIndex) / 20 * 100) + '%';
+    document.getElementById('q-num').textContent = qIndex + 1;
+    document.getElementById('qnum').textContent = (qIndex + 1);
+    document.getElementById('score').textContent = score;
+    document.getElementById('question').textContent = currentQ.q;
+    document.getElementById('q-category').textContent = currentQ.c;
+    
+    document.querySelectorAll('.progress-dot').forEach((dot, i) => {
+        dot.className = 'progress-dot';
+        if (i < qIndex) dot.classList.add('correct');
+        if (i === qIndex) dot.classList.add('current');
+    });
+    
+    let letters = ['A', 'B', 'C', 'D'];
+    let options = [...currentQ.o];
+    let correctAnswer = options[currentQ.a];
+    let shuffledOptions = shuffleArray([...options]);
+    
+    const grid = document.getElementById('options');
+    grid.innerHTML = '';
+    
+    shuffledOptions.forEach(function(opt, i) {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.innerHTML = '<span class="option-letter">' + letters[i] + '</span>' + opt;
+        btn.onclick = function() { checkAnswer(i, shuffledOptions); this.disabled = true; };
+        grid.appendChild(btn);
+    });
+}
+
+function checkAnswer(selectedIndex, options) {
+    let correctAnswer = options[currentQ.a];
+    let buttons = document.querySelectorAll('.option-btn');
+    let selectedBtn = buttons[selectedIndex];
+    
+    if (options[selectedIndex] === correctAnswer) {
+        correct++;
+        score += 20;
+        selectedBtn.classList.add('correct');
+        document.getElementById('dot-' + qIndex).classList.add('correct');
+    } else {
+        wrong++;
+        selectedBtn.classList.add('wrong');
+        document.getElementById('dot-' + qIndex).classList.add('wrong');
+        
+        buttons.forEach(function(btn, i) {
+            if (options[i] === correctAnswer) {
+                btn.classList.add('correct');
+            }
+        });
+    }
+    
+    document.getElementById('score').textContent = score;
+    qIndex++;
+    setTimeout(loadQuestion, 1000);
+}
+
+function endGame() {
+    clearInterval(timer);
+    
+    let accuracy = Math.round((correct / 20) * 100);
+    document.getElementById('correct-count').textContent = correct;
+    document.getElementById('wrong-count').textContent = wrong;
+    document.getElementById('final-xp').textContent = '+' + score + ' XP';
+    document.getElementById('accuracy').textContent = accuracy + '%';
+    
+    if (accuracy >= 80) {
+        document.getElementById('result-title').textContent = "Outstanding!";
+    } else if (accuracy >= 60) {
+        document.getElementById('result-title').textContent = "Well Done!";
+    } else {
+        document.getElementById('result-title').textContent = "Keep Learning!";
+    }
+    
+    document.getElementById('result-screen').classList.add('show');
+    if (window.lucide) lucide.createIcons();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.lucide) lucide.createIcons();
+});
+</script>
+{% endblock %}

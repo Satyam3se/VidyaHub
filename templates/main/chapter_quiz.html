@@ -1,0 +1,446 @@
+{% extends 'main/base.html' %}
+
+{% block content %}
+<section class="cq-section">
+    <div class="cq-container">
+
+        {% if no_questions %}
+        <!-- No Questions State -->
+        <div class="glass cq-card text-center animate-scale">
+            <div class="cq-no-q-icon">📚</div>
+            <h1>Quiz Coming Soon!</h1>
+            <p class="text-muted">Questions for <strong>{{ chapter.name }}</strong> haven't been added yet. Check back after your teacher updates the content!</p>
+            <a href="javascript:history.back()" class="btn btn-primary mt-3">Go Back</a>
+        </div>
+
+        {% else %}
+
+        <!-- INTRO SCREEN -->
+        <div id="cq-intro" class="glass cq-card animate-scale">
+            <div class="cq-chapter-badge">
+                <i data-lucide="book-marked"></i>
+            </div>
+            <h1 class="cq-title">Chapter Quiz</h1>
+            <p class="cq-subtitle text-muted">{{ chapter.name }}</p>
+
+            <div class="cq-meta-row">
+                <div class="cq-meta-item glass">
+                    <i data-lucide="help-circle"></i>
+                    <span>{{ total }} Questions</span>
+                </div>
+                <div class="cq-meta-item glass">
+                    <i data-lucide="zap"></i>
+                    <span>15 XP / Correct</span>
+                </div>
+                <div class="cq-meta-item glass">
+                    <i data-lucide="award"></i>
+                    <span>+30 XP Perfect Bonus</span>
+                </div>
+            </div>
+
+            <p class="cq-instruction text-muted">Answer all questions to the best of your ability. Your XP will be awarded upon completion!</p>
+            <button class="btn btn-primary btn-large w-100" onclick="startCQ()">
+                <i data-lucide="play" class="me-2"></i> Start Chapter Quiz
+            </button>
+        </div>
+
+        <!-- QUIZ SCREEN -->
+        <div id="cq-quiz" style="display:none;" class="animate-up">
+
+            <!-- Progress Header -->
+            <div class="cq-progress-bar glass">
+                <div class="cq-prog-info">
+                    <span id="cq-chapter-name">{{ chapter.name }}</span>
+                    <span id="cq-qnum" class="cq-qnum">1 / {{ total }}</span>
+                </div>
+                <div class="cq-prog-outer">
+                    <div id="cq-prog-fill" class="cq-prog-fill" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="glass cq-card cq-question-card">
+                <div class="cq-q-number">
+                    <span id="cq-q-badge">Q1</span>
+                </div>
+                <h2 id="cq-q-text" class="cq-q-text"></h2>
+                <div id="cq-options" class="cq-options-grid"></div>
+
+                <!-- Explanation Panel (shown after answer) -->
+                <div id="cq-explanation" class="cq-explanation" style="display:none;">
+                    <i data-lucide="info"></i>
+                    <span id="cq-exp-text"></span>
+                </div>
+
+                <!-- Next Button -->
+                <div class="cq-actions" id="cq-next-wrap" style="display:none;">
+                    <button class="btn btn-primary" id="cq-next-btn" onclick="nextCQ()">
+                        Next Question <i data-lucide="arrow-right" class="ms-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Live Score -->
+            <div class="cq-live-score glass">
+                <i data-lucide="star"></i>
+                Score: <span id="cq-live-val">0</span> / <span>{{ total }}</span>
+            </div>
+        </div>
+
+        <!-- RESULTS SCREEN -->
+        <div id="cq-results" style="display:none;" class="glass cq-card text-center animate-scale">
+            <div id="cq-lvlup" class="cq-lvlup" style="display:none;">Level Up!</div>
+
+            <div class="cq-result-icon" id="cq-result-emoji">🎉</div>
+            <h1 class="cq-result-title" id="cq-result-title">Chapter Complete!</h1>
+            <p class="text-muted" id="cq-result-sub">Great effort on {{ chapter.name }}!</p>
+
+            <div class="cq-result-stats">
+                <div class="cq-res-card glass">
+                    <span class="cq-res-label">Score</span>
+                    <span class="cq-res-val" id="cq-res-score">0/{{total}}</span>
+                </div>
+                <div class="cq-res-card glass">
+                    <span class="cq-res-label">XP Earned</span>
+                    <span class="cq-res-val xp-color" id="cq-res-xp">+0</span>
+                </div>
+                <div class="cq-res-card glass">
+                    <span class="cq-res-label">Accuracy</span>
+                    <span class="cq-res-val" id="cq-res-acc">0%</span>
+                </div>
+            </div>
+
+            <div class="cq-result-actions">
+                <button class="btn btn-secondary" onclick="retakeCQ()">
+                    <i data-lucide="rotate-ccw" class="me-2"></i> Retake Quiz
+                </button>
+                <a href="{% url 'game_dashboard' %}" class="btn btn-primary">
+                    <i data-lucide="trophy" class="me-2"></i> View Dashboard
+                </a>
+                <a href="javascript:history.back()" class="btn btn-secondary">
+                    <i data-lucide="book-open" class="me-2"></i> Back to Chapter
+                </a>
+            </div>
+        </div>
+
+        {% endif %}
+    </div>
+</section>
+
+<!-- DATA -->
+<script>
+const CQ_QUESTIONS = [
+    {% for q in questions %}
+    {
+        id: {{ q.id }},
+        text: "{{ q.question_text|escapejs }}",
+        options: {
+            A: "{{ q.option_a|escapejs }}",
+            B: "{{ q.option_b|escapejs }}",
+            C: "{{ q.option_c|escapejs }}",
+            D: "{{ q.option_d|escapejs }}"
+        },
+        answer: "{{ q.correct_option }}",
+        explanation: "{{ q.explanation|escapejs }}"
+    },
+    {% endfor %}
+];
+const CQ_CHAPTER_ID = {{ chapter.id }};
+const CQ_CSRF = "{{ csrf_token }}";
+const CQ_SUBMIT_URL = "{% url 'chapter_quiz_submit' %}";
+</script>
+
+<style>
+/* ============ CHAPTER QUIZ STYLES ============ */
+.cq-section { padding: 8rem 0 6rem; min-height: 100vh; }
+.cq-container { max-width: 680px; margin: 0 auto; padding: 0 1rem; }
+
+/* Cards */
+.cq-card {
+    padding: 2.5rem;
+    border-radius: 2rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+/* Intro */
+.cq-chapter-badge {
+    width: 72px; height: 72px;
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1.5rem;
+    box-shadow: 0 8px 24px rgba(99,102,241,0.35);
+}
+.cq-chapter-badge i { width: 32px; height: 32px; color: #fff; }
+.cq-title { font-size: 2rem; font-weight: 900; margin: 0 0 0.25rem; }
+.cq-subtitle { font-size: 1rem; margin-bottom: 1.5rem; }
+.cq-meta-row { display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.cq-meta-item {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 1rem; border-radius: 999px;
+    font-size: 0.85rem; font-weight: 600;
+    border: 1px solid var(--glass-border);
+}
+.cq-meta-item i { width: 16px; height: 16px; color: #818cf8; }
+.cq-instruction { font-size: 0.9rem; margin-bottom: 2rem; }
+
+/* Progress Bar */
+.cq-progress-bar {
+    padding: 1rem 1.5rem;
+    border-radius: 1.5rem;
+    margin-bottom: 1.2rem;
+}
+.cq-prog-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.85rem; font-weight: 600; }
+.cq-qnum { color: #818cf8; font-weight: 700; }
+.cq-prog-outer { height: 8px; background: rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; }
+.cq-prog-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #818cf8); border-radius: 10px; transition: width 0.4s ease; }
+
+/* Question Card */
+.cq-question-card { text-align: left; }
+.cq-q-number { margin-bottom: 1rem; }
+.cq-q-badge {
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    padding: 0.3rem 0.8rem;
+    border-radius: 999px;
+}
+.cq-q-text { font-size: 1.2rem; font-weight: 700; line-height: 1.5; margin-bottom: 1.5rem; }
+
+.cq-options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.5rem; }
+.cq-opt {
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 1rem;
+    padding: 0.9rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    text-align: left;
+    display: flex; align-items: center; gap: 0.75rem;
+    transition: all 0.2s ease;
+}
+.cq-opt:hover:not(:disabled) { border-color: #6366f1; background: rgba(99,102,241,0.1); transform: translateY(-2px); }
+.cq-opt-letter {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: rgba(99,102,241,0.15);
+    color: #818cf8;
+    font-size: 0.8rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.cq-opt.correct { border-color: #4ade80 !important; background: rgba(74,222,128,0.1) !important; }
+.cq-opt.correct .cq-opt-letter { background: rgba(74,222,128,0.2); color: #4ade80; }
+.cq-opt.wrong { border-color: #f87171 !important; background: rgba(248,113,113,0.1) !important; }
+.cq-opt.wrong .cq-opt-letter { background: rgba(248,113,113,0.2); color: #f87171; }
+
+/* Explanation */
+.cq-explanation {
+    display: flex; align-items: flex-start; gap: 0.75rem;
+    background: rgba(99,102,241,0.08);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 1rem;
+    padding: 1rem 1.2rem;
+    font-size: 0.88rem;
+    margin-bottom: 1.5rem;
+    animation: fadeIn 0.3s ease;
+}
+.cq-explanation i { width: 18px; height: 18px; color: #818cf8; flex-shrink: 0; margin-top: 2px; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.cq-actions { text-align: right; }
+
+/* Live Score */
+.cq-live-score {
+    padding: 0.75rem 1.5rem;
+    border-radius: 1rem;
+    display: flex; align-items: center; gap: 0.5rem;
+    font-weight: 700; font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+.cq-live-score i { width: 18px; height: 18px; color: #fbbf24; }
+
+/* Results */
+.cq-result-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+.cq-result-title { font-size: 2rem; font-weight: 900; margin-bottom: 0.5rem; }
+.cq-result-stats { display: flex; gap: 1rem; margin: 2rem 0; }
+.cq-res-card { flex: 1; padding: 1.25rem 1rem; border-radius: 1.2rem; }
+.cq-res-label { display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 0.4rem; }
+.cq-res-val { font-size: 1.5rem; font-weight: 900; }
+.xp-color { color: #fbbf24; }
+
+.cq-result-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center; margin-top: 1rem; }
+
+.cq-lvlup {
+    font-size: 1.5rem; font-weight: 900;
+    color: #fbbf24;
+    text-shadow: 0 0 20px rgba(251,191,36,0.5);
+    margin-bottom: 1rem;
+    animation: pulse 0.8s ease infinite alternate;
+}
+@keyframes pulse { from { transform: scale(1); } to { transform: scale(1.05); } }
+
+/* No questions state */
+.cq-no-q-icon { font-size: 3rem; margin-bottom: 1rem; }
+
+/* Mobile */
+@media (max-width: 600px) {
+    .cq-section { padding: 6rem 0 7rem; }
+    .cq-card { padding: 1.5rem; }
+    .cq-options-grid { grid-template-columns: 1fr; }
+    .cq-result-stats { flex-direction: column; }
+    .cq-meta-row { gap: 0.5rem; }
+}
+</style>
+
+<script>
+let cqIdx = 0;
+let cqScore = 0;
+let cqAnswered = false;
+const cqTotal = CQ_QUESTIONS.length;
+
+function startCQ() {
+    document.getElementById('cq-intro').style.display = 'none';
+    document.getElementById('cq-quiz').style.display = 'block';
+    showCQ();
+}
+
+function showCQ() {
+    if (cqIdx >= cqTotal) { finishCQ(); return; }
+    cqAnswered = false;
+
+    const q = CQ_QUESTIONS[cqIdx];
+    const pct = (cqIdx / cqTotal) * 100;
+
+    document.getElementById('cq-q-badge').textContent = `Q${cqIdx + 1}`;
+    document.getElementById('cq-qnum').textContent = `${cqIdx + 1} / ${cqTotal}`;
+    document.getElementById('cq-prog-fill').style.width = pct + '%';
+    document.getElementById('cq-q-text').textContent = q.text;
+    document.getElementById('cq-explanation').style.display = 'none';
+    document.getElementById('cq-next-wrap').style.display = 'none';
+
+    const grid = document.getElementById('cq-options');
+    grid.innerHTML = '';
+    ['A', 'B', 'C', 'D'].forEach(letter => {
+        const btn = document.createElement('button');
+        btn.className = 'cq-opt';
+        btn.onclick = () => handleCQ(letter, btn);
+        btn.innerHTML = `<span class="cq-opt-letter">${letter}</span>${q.options[letter]}`;
+        grid.appendChild(btn);
+    });
+
+    if (window.lucide) lucide.createIcons();
+}
+
+function handleCQ(choice, btn) {
+    if (cqAnswered) return;
+    cqAnswered = true;
+
+    const q = CQ_QUESTIONS[cqIdx];
+    const allBtns = document.querySelectorAll('.cq-opt');
+    allBtns.forEach(b => b.disabled = true);
+
+    if (choice === q.answer) {
+        btn.classList.add('correct');
+        cqScore++;
+        document.getElementById('cq-live-val').textContent = cqScore;
+    } else {
+        btn.classList.add('wrong');
+        // Highlight correct
+        allBtns.forEach((b, i) => {
+            if (['A','B','C','D'][i] === q.answer) b.classList.add('correct');
+        });
+    }
+
+    // Show explanation
+    if (q.explanation) {
+        document.getElementById('cq-exp-text').textContent = q.explanation;
+        document.getElementById('cq-explanation').style.display = 'flex';
+    }
+
+    // Show next button or auto-advance if last
+    if (cqIdx < cqTotal - 1) {
+        document.getElementById('cq-next-wrap').style.display = 'block';
+        const nextBtn = document.getElementById('cq-next-btn');
+        nextBtn.textContent = 'Next Question';
+    } else {
+        document.getElementById('cq-next-wrap').style.display = 'block';
+        const nextBtn = document.getElementById('cq-next-btn');
+        nextBtn.innerHTML = 'See Results <i data-lucide="trophy" class="ms-2"></i>';
+    }
+    if (window.lucide) lucide.createIcons();
+}
+
+function nextCQ() {
+    cqIdx++;
+    showCQ();
+}
+
+function finishCQ() {
+    document.getElementById('cq-quiz').style.display = 'none';
+    document.getElementById('cq-results').style.display = 'block';
+
+    const pct = Math.round((cqScore / cqTotal) * 100);
+    document.getElementById('cq-res-score').textContent = `${cqScore}/${cqTotal}`;
+    document.getElementById('cq-res-acc').textContent = `${pct}%`;
+
+    // Result emoji / title
+    if (pct === 100) {
+        document.getElementById('cq-result-emoji').textContent = '🏆';
+        document.getElementById('cq-result-title').textContent = 'Perfect Score!';
+    } else if (pct >= 70) {
+        document.getElementById('cq-result-emoji').textContent = '🎉';
+        document.getElementById('cq-result-title').textContent = 'Excellent Work!';
+    } else if (pct >= 40) {
+        document.getElementById('cq-result-emoji').textContent = '👍';
+        document.getElementById('cq-result-title').textContent = 'Good Effort!';
+    } else {
+        document.getElementById('cq-result-emoji').textContent = '📚';
+        document.getElementById('cq-result-title').textContent = 'Keep Practicing!';
+    }
+
+    // Submit to backend
+    fetch(CQ_SUBMIT_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CQ_CSRF
+        },
+        body: JSON.stringify({
+            chapter_id: CQ_CHAPTER_ID,
+            score: cqScore,
+            total: cqTotal
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('cq-res-xp').textContent = `+${data.xp_earned}`;
+        if (data.level_up) {
+            document.getElementById('cq-lvlup').style.display = 'block';
+        }
+    })
+    .catch(() => {
+        document.getElementById('cq-res-xp').textContent = '+' + (cqScore * 15);
+    });
+
+    if (window.lucide) lucide.createIcons();
+}
+
+function retakeCQ() {
+    cqIdx = 0; cqScore = 0; cqAnswered = false;
+    document.getElementById('cq-results').style.display = 'none';
+    document.getElementById('cq-quiz').style.display = 'block';
+    document.getElementById('cq-live-val').textContent = '0';
+    showCQ();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.lucide) lucide.createIcons();
+});
+</script>
+{% endblock %}

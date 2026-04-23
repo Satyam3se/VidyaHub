@@ -1,0 +1,44 @@
+{% extends 'main/base.html' %}
+
+{% block content %}
+<section class="dashboard-wrapper">
+    <div class="dashboard-header">
+        <nav class="breadcrumb">
+            <a href="{% url 'course_index' %}">Classes</a> / 
+            <a href="{% url 'grade_detail' grade.slug %}">{{ grade.name }}</a> / 
+            <span>{{ subject.name }}</span>
+        </nav>
+        <h1 class="hero-title">{{ subject.name }} <span class="text-gradient">Chapters</span></h1>
+        <p class="hero-subtitle">Browse through the chapters and start learning today.</p>
+        
+        <div class="mt-4">
+            <a href="{% url 'live_battle' subject.id %}" class="btn btn-primary glass-glow" style="background: linear-gradient(135deg, #8A4BFF, #6366f1); border: 1px solid rgba(255,255,255,0.2);">
+                <i data-lucide="swords" class="me-2"></i> Enter Live Battle Arena
+            </a>
+        </div>
+    </div>
+
+    <div class="chapters-grid">
+        {% for chapter in chapters %}
+        <a href="{% url 'chapter_detail' grade.slug subject.slug chapter.slug %}" class="glass chapter-item">
+            <div class="chapter-info">
+                <span class="chapter-number">Chapter {{ forloop.counter }}</span>
+                <h3 class="chapter-name">{{ chapter.name }}</h3>
+                <span class="chapter-meta">
+                    <i data-lucide="play-circle"></i> {{ chapter.videos.count }} Video{{ chapter.videos.count|pluralize }}
+                </span>
+            </div>
+            <div class="chapter-action">
+                <i data-lucide="chevron-right"></i>
+            </div>
+        </a>
+        {% empty %}
+        <div class="glass empty-state">
+            <i data-lucide="info"></i>
+            <p>No chapters available for this subject yet.</p>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+{% endblock %}

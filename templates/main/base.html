@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VidyaHub | AI-Powered Learning</title>
+    <meta name="description" content="VidyaHub is a premium AI-powered educational platform designed for a gamified learning experience.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    {% include 'main/navbar.html' %}
+
+    <!-- Achievement Notification Toast -->
+    <div id="achievement-toast" class="achievement-toast" style="display: none;">
+        <div class="toast-content">
+            <div class="toast-icon">
+                <i data-lucide="award"></i>
+            </div>
+            <div class="toast-text">
+                <span class="toast-title">Achievement Unlocked!</span>
+                <span class="toast-badge-name" id="toast-badge-name"></span>
+            </div>
+        </div>
+    </div>
+
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 VidyaHub. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="bottom-nav glass">
+        <a href="{% url 'dashboard' %}" class="bnav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+            <i data-lucide="home"></i>
+            <span>Home</span>
+        </a>
+        <a href="{% url 'course_index' %}" class="bnav-item {% if '/courses/' in request.path %}active{% endif %}">
+            <i data-lucide="book-open"></i>
+            <span>Courses</span>
+        </a>
+        <a href="{% url 'game_dashboard' %}" class="bnav-item {% if '/game/' in request.path %}active{% endif %}">
+            <i data-lucide="zap"></i>
+            <span>Quests</span>
+        </a>
+        <a href="{% url 'logout' %}" class="bnav-item">
+            <i data-lucide="log-out"></i>
+            <span>Exit</span>
+        </a>
+    </nav>
+    
+    <!-- Vidya AI Chatbot -->
+    <div id="vidya-ai-widget" class="ai-widget">
+        <button id="ai-toggle-btn" class="ai-btn glass" title="Ask Vidya AI">
+            <i data-lucide="sparkles"></i>
+        </button>
+        
+        <div id="ai-chat-window" class="ai-chat-window glass hidden">
+            <div class="ai-chat-header">
+                <div class="ai-avatar">
+                    <i data-lucide="sparkles"></i>
+                </div>
+                <div class="ai-header-info">
+                    <h3>Vidya AI</h3>
+                    <span>Online | Your AI Tutor</span>
+                </div>
+                <button id="ai-close-btn" class="ai-close">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div id="ai-messages" class="ai-messages">
+                <div class="message ai-message">
+                    Hii! I'm Vidya AI. How can I help you with your studies today?
+                </div>
+            </div>
+            <div class="ai-chat-input-area">
+                <input type="text" id="ai-user-input" placeholder="Ask a doubt..." autocomplete="off">
+                <button id="ai-send-btn">
+                    <i data-lucide="send"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'js/main.js' %}"></script>
+    <script>
+        // Achievement toast notification
+        function showAchievementToast(badgeName, icon = 'award') {
+            const toast = document.getElementById('achievement-toast');
+            const badgeNameEl = document.getElementById('toast-badge-name');
+            const toastIcon = toast.querySelector('.toast-icon i');
+            
+            badgeNameEl.textContent = badgeName;
+            toastIcon.setAttribute('data-lucide', icon);
+            
+            toast.style.display = 'flex';
+            toast.classList.add('show');
+            
+            if (window.lucide) lucide.createIcons();
+            
+            // Play sound effect (optional)
+            // new Audio('/static/sounds/achievement.mp3').play().catch(()=>{});
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => { toast.style.display = 'none'; }, 300);
+            }, 4000);
+        }
+        
+        // Re-run lucide.createIcons when DOM is fully loaded to handle dynamic content
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.lucide) lucide.createIcons();
+        });
+    </script>
+    <style>
+        /* Achievement Toast Styles */
+        .achievement-toast {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            z-index: 9999;
+            background: linear-gradient(135deg, rgba(99,102,241,0.95), rgba(129,140,248,0.95));
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 1rem;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 10px 40px rgba(99,102,241,0.4);
+            transform: translateX(120%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .achievement-toast.show {
+            transform: translateX(0);
+        }
+        .toast-content {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .toast-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(251,191,36,0.4);
+        }
+        .toast-icon i {
+            color: #fff;
+            width: 24px;
+            height: 24px;
+        }
+        .toast-text {
+            display: flex;
+            flex-direction: column;
+        }
+        .toast-title {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.7);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .toast-badge-name {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+        }
+    </style>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

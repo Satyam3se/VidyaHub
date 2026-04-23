@@ -1,0 +1,372 @@
+{% extends 'main/base.html' %}
+
+{% block content %}
+<div class="dashboard-wrapper">
+    <div class="dashboard-header">
+        <h1 class="hero-title">Student <span class="text-gradient">Dashboard</span></h1>
+        <p class="hero-subtitle">Welcome back, {{ request.user.username }}! Ready to complete your next quest?</p>
+    </div>
+
+    <!-- Player Profile Card -->
+    <div class="player-profile-card glass glass-glow">
+        <div class="profile-main">
+            <div class="level-badge-large">
+                <span class="lvl-num">{{ request.user.profile.level }}</span>
+                <span class="lvl-text">LEVEL</span>
+            </div>
+            <div class="profile-info">
+                <h2>{{ request.user.username }} <span class="level-title">{{ request.user.profile.get_level_title }}</span></h2>
+                <p class="text-muted">{{ request.user.profile.get_grade_display|default:request.user.profile.grade }} • {{ request.user.profile.get_target_exam_display|default:"General" }}</p>
+                <div class="xp-bar-container">
+                    <div class="xp-bar-label">
+                        <span>{{ request.user.profile.xp }} XP</span>
+                        <span>{{ request.user.profile.get_xp_for_next_level }} XP to level {{ request.user.profile.level|add:1 }}</span>
+                    </div>
+                    <div class="xp-bar">
+                        <div class="xp-fill" style="width: {{ request.user.profile.get_xp_progress }}%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="profile-stats">
+            <div class="profile-stat">
+                <i data-lucide="flame" class="stat-icon" style="color: #ef4444;"></i>
+                <div class="stat-info">
+                    <span class="stat-value">{{ request.user.profile.streak }}</span>
+                    <span class="stat-label">Day Streak</span>
+                </div>
+            </div>
+            <div class="profile-stat">
+                <i data-lucide="trophy" class="stat-icon" style="color: #fbbf24;"></i>
+                <div class="stat-info">
+                    <span class="stat-value">#{{ global_rank|default:"--" }}</span>
+                    <span class="stat-label">Global Rank</span>
+                </div>
+            </div>
+            <div class="profile-stat">
+                <i data-lucide="zap" class="stat-icon" style="color: #f59e0b;"></i>
+                <div class="stat-info">
+                    <span class="stat-value">{{ request.user.profile.xp }}</span>
+                    <span class="stat-label">Total XP</span>
+                </div>
+            </div>
+            <div class="profile-stat">
+                <i data-lucide="pen-line" class="stat-icon" style="color: #10b981;"></i>
+                <div class="stat-info">
+                    <span class="stat-value">{{ request.user.profile.total_quizzes }}</span>
+                    <span class="stat-label">Quizzes</span>
+                </div>
+            </div>
+            <div class="profile-stat">
+                <i data-lucide="gamepad-2" class="stat-icon" style="color: #8b5cf6;"></i>
+                <div class="stat-info">
+                    <span class="stat-value">{{ request.user.profile.games_played }}</span>
+                    <span class="stat-label">Games</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Reward Banner -->
+    {% if daily_reward %}
+    <div class="daily-reward-banner glass animate-pulse" style="margin-bottom: 1.5rem; padding: 1rem 1.5rem; border-radius: 1rem; background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(251,191,36,0.1)); border: 1px solid rgba(245,158,11,0.3);">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b, #fbbf24); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="gift" style="color: #fff;"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1rem; color: #fbbf24;">Daily Reward - Day {{ daily_reward.day }}</h3>
+                    <p style="margin: 0; font-size: 0.85rem; color: #94a3b8;">{{ daily_reward.description }}</p>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span style="font-size: 1.5rem; font-weight: 700; color: #fbbf24;">+{{ daily_reward.xp_reward }} XP</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="stats-grid">
+        <div class="stat-card glass glass-glow">
+            <div class="stat-value">{{ courses_enrolled|default:0 }}</div>
+            <div class="stat-label">Courses Enrolled</div>
+        </div>
+        <div class="stat-card glass glass-glow">
+            <div class="stat-value">{{ quests_completed|default:0 }}</div>
+            <div class="stat-label">Quests Completed</div>
+        </div>
+        <div class="stat-card glass glass-glow">
+            <div class="stat-value">{{ request.user.profile.perfect_scores }}</div>
+            <div class="stat-label">Perfect Scores</div>
+        </div>
+        <div class="stat-card glass glass-glow">
+            <div class="stat-value">{{ user_badges|length }}</div>
+            <div class="stat-label">Badges Earned</div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid mt-4">
+        <div class="main-stats">
+            <!-- Badges Section -->
+            {% if user_badges %}
+            <div class="glass glass-glow" style="padding: 1.5rem; border-radius: 1rem; margin-bottom: 1rem;">
+                <h3 style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <i data-lucide="award" style="color: #fbbf24;"></i> Your Badges
+                </h3>
+                <div class="badges-grid" style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    {% for ub in user_badges %}
+                    <div class="badge-item" style="text-align: center;" title="{{ ub.achievement.description }}">
+                        <div class="badge-icon" style="width: 50px; height: 50px; border-radius: 50%; background: {% if ub.achievement.rarity == 'legendary' %}linear-gradient(135deg, #f59e0b, #fbbf24){% elif ub.achievement.rarity == 'epic' %}linear-gradient(135deg, #8b5cf6, #a855f7){% elif ub.achievement.rarity == 'rare' %}linear-gradient(135deg, #3b82f6, #06b6d4){% else %}linear-gradient(135deg, #10b981, #34d399){% endif %}; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem;">
+                            <i data-lucide="{{ ub.achievement.icon }}" style="color: #fff; width: 24px; height: 24px;"></i>
+                        </div>
+                        <span style="font-size: 0.7rem; color: #94a3b8;">{{ ub.achievement.name }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Achievement Progress -->
+            {% if achievement_progress %}
+            <div class="glass glass-glow" style="padding: 1.5rem; border-radius: 1rem; margin-bottom: 1rem;">
+                <h3 style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <i data-lucide="target" style="color: #818cf8;"></i> Achievement Progress
+                </h3>
+                <div class="achievements-list">
+                    {% for ach in achievement_progress %}
+                    {% if not ach.earned %}
+                    <div class="achievement-item" style="margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <i data-lucide="{{ ach.icon }}" style="width: 18px; height: 18px; color: {% if ach.rarity == 'legendary' %}#fbbf24{% elif ach.rarity == 'epic' %}#a855f7{% elif ach.rarity == 'rare' %}#06b6d4{% else %}#10b981{% endif %};"></i>
+                                <span style="font-weight: 600; font-size: 0.9rem;">{{ ach.name }}</span>
+                            </div>
+                            <span style="font-size: 0.75rem; color: #94a3b8;">{{ ach.current }}/{{ ach.required }}</span>
+                        </div>
+                        <div style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                            <div style="height: 100%; width: {{ ach.progress }}%; background: {% if ach.rarity == 'legendary' %}linear-gradient(90deg, #f59e0b, #fbbf24){% elif ach.rarity == 'epic' %}linear-gradient(90deg, #8b5cf6, #a855f7){% elif ach.rarity == 'rare' %}linear-gradient(90deg, #3b82f6, #06b6d4){% else %}linear-gradient(90deg, #10b981, #34d399){% endif %}; border-radius: 3px;"></div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Quick Actions -->
+            <div class="quick-actions mt-4">
+                <h3>Quick Actions</h3>
+                <div class="action-buttons">
+                    <a href="{% url 'game_dashboard' %}" class="action-btn glass">
+                        <i data-lucide="swords"></i>
+                        <span>Play Games</span>
+                    </a>
+                    <a href="{% url 'daily_quiz' subject.id|default:1 %}" class="action-btn glass">
+                        <i data-lucide="book-open"></i>
+                        <span>Daily Quiz</span>
+                    </a>
+                    <a href="#" class="action-btn glass">
+                        <i data-lucide="video"></i>
+                        <span>Watch Videos</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="leaderboard-sidebar glass animate-scale">
+            <div class="sidebar-header" style="background: rgba(138, 75, 255, 0.05);">
+                <h3 style="display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-lucide="trophy" style="color: #fbbf24;"></i> Global Leaderboard
+                </h3>
+            </div>
+            <div class="leaderboard-list">
+                {% for entry in leaderboard %}
+                <div class="leaderboard-item">
+                    <div class="rank">#{{ forloop.counter }}</div>
+                    <div class="user-info">
+                        <span class="username">{{ entry.username }}</span>
+                        <span class="points">{{ entry.score }} pts</span>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="p-4 text-center opacity-50">
+                    No rankings yet. Join a battle to climb the ranks!
+                </div>
+                {% endfor %}
+            </div>
+            <div class="leaderboard-footer">
+                <a href="{% url 'leaderboard' %}">View Full Leaderboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.player-profile-card {
+    padding: 2rem;
+    border-radius: 1.5rem;
+    margin-bottom: 2rem;
+}
+.profile-main {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.level-badge-large {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    border-radius: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 8px 24px rgba(99,102,241,0.4);
+}
+.level-badge-large .lvl-num {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1;
+}
+.level-badge-large .lvl-text {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 1px;
+}
+.level-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #818cf8;
+    background: rgba(99,102,241,0.15);
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    margin-left: 0.5rem;
+}
+.profile-info h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+.xp-bar-container {
+    margin-top: 0.75rem;
+}
+.xp-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-bottom: 0.35rem;
+}
+.xp-bar {
+    height: 8px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.xp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #818cf8);
+    border-radius: 4px;
+    transition: width 1s ease;
+    box-shadow: 0 0 10px rgba(99,102,241,0.5);
+}
+.profile-stats {
+    display: flex;
+    gap: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--glass-border);
+}
+.profile-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.profile-stat .stat-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(99,102,241,0.15);
+    padding: 8px;
+    border-radius: 10px;
+    color: #818cf8;
+}
+.stat-info {
+    display: flex;
+    flex-direction: column;
+}
+.stat-info .stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+.stat-info .stat-label {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+.quick-actions h3 {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+.action-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+.action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.25rem 1rem;
+    border-radius: 1rem;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    color: var(--text-primary);
+}
+.action-btn:hover {
+    background: rgba(255,255,255,0.08);
+    transform: translateY(-4px);
+}
+.action-btn i {
+    width: 24px;
+    height: 24px;
+    color: #818cf8;
+}
+.action-btn span {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.leaderboard-footer {
+    padding: 1rem;
+    text-align: center;
+    border-top: 1px solid var(--glass-border);
+}
+.leaderboard-footer a {
+    color: #818cf8;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+.leaderboard-footer a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .player-profile-card { padding: 1.5rem; }
+    .profile-main { flex-direction: column; text-align: center; }
+    .profile-stats { justify-content: center; }
+    .action-buttons { grid-template-columns: 1fr; }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.lucide) lucide.createIcons();
+});
+</script>
+{% endblock %}

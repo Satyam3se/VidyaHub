@@ -1,0 +1,34 @@
+{% extends 'main/base.html' %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="glass-card glass glass-glow">
+        <h1 class="auth-title">Teacher Signup</h1>
+        <p class="auth-subtitle">Inspire the next generation with AI-driven tools.</p>
+        
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    <input type="{{ field.field.widget.input_type|default:'text' }}" 
+                           name="{{ field.name }}" 
+                           id="{{ field.id_for_label }}" 
+                           class="glass-input" 
+                           placeholder="{{ field.label }}"
+                           {% if field.value %}value="{{ field.value }}"{% endif %}>
+                    {% if field.errors %}
+                        <p class="text-danger">{{ field.errors.as_text }}</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary w-100 mt-2">Create Teacher Account</button>
+        </form>
+        
+        <div class="auth-footer">
+            Already have an account? <a href="{% url 'login' %}" class="auth-link">Login</a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

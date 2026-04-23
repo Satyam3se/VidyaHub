@@ -1,0 +1,62 @@
+{% extends 'main/base.html' %}
+
+{% block content %}
+<section class="dashboard-wrapper">
+    <div class="dashboard-header">
+        <a href="{% url 'course_index' %}" class="btn btn-secondary" style="margin-bottom: 2rem;">
+            <i data-lucide="arrow-left"></i> All Classes
+        </a>
+        <h1 class="hero-title">{{ grade.name }} <span class="text-gradient">Subjects</span></h1>
+        <p class="hero-subtitle">Select a subject to view its chapters and start learning.</p>
+    </div>
+
+    <div class="stats-grid">
+        {% for subject in subjects %}
+        <a href="{% url 'subject_detail' grade.slug subject.slug %}" class="glass glass-card stat-card subject-card animate-up" style="animation-delay: {{ forloop.counter0|add:0.1 }}s">
+            <div class="subject-icon">
+                <i data-lucide="{{ subject.icon|default:'book-open' }}"></i>
+            </div>
+            <div class="stat-label">{{ subject.name }}</div>
+            <div class="subject-stats">{{ subject.chapters.count }} Chapters</div>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+
+<style>
+    .subject-card {
+        padding: 2.5rem;
+        transition: var(--transition);
+        text-decoration: none;
+    }
+    
+    .subject-card:hover {
+        transform: translateY(-8px);
+        border-color: var(--primary);
+        background: rgba(99, 102, 241, 0.1);
+    }
+    
+    .subject-icon {
+        width: 60px;
+        height: 60px;
+        background: var(--glass-glow);
+        border-radius: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        color: var(--primary);
+    }
+    
+    .subject-icon i {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .subject-stats {
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+</style>
+{% endblock %}

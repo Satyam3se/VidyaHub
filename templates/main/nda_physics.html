@@ -1,0 +1,200 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="game-page">
+    <div class="game-container glass">
+        <div class="game-header">
+            <div class="game-title">
+                <h1><i data-lucide="atom" class="title-icon"></i> NDA Physics</h1>
+                <p>Force, motion, and energy questions!</p>
+            </div>
+            <div class="game-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Streak</span>
+                    <span class="stat-value" id="streak">0</span>
+                </div>
+                <div class="stat-item timer">
+                    <span class="stat-label">Time</span>
+                    <span class="stat-value" id="timer">120</span>s
+                </div>
+            </div>
+        </div>
+
+        <div id="start-screen" class="game-start">
+            <div class="start-content">
+                <div class="start-icon" style="background: linear-gradient(135deg, #3b82f6, #06b6d4);">
+                    <i data-lucide="atom"></i>
+                </div>
+                <h2>Ready for NDA Physics?</h2>
+                <p>Test your knowledge of physics concepts!</p>
+                <ul class="start-info">
+                    <li>🎯 15 XP per correct answer</li>
+                    <li>🔥 Bonus for streaks</li>
+                    <li>⏱️ 2 minutes</li>
+                </ul>
+                <button onclick="startGame()" class="start-button">
+                    <i data-lucide="play"></i> Start Game
+                </button>
+            </div>
+        </div>
+
+        <div id="game-area" style="display:none;" class="game-play">
+            <div class="question-box">
+                <p id="question-text">Loading question...</p>
+            </div>
+            
+            <div class="answers" id="answers"></div>
+        </div>
+
+        <div id="result-screen" class="result-modal">
+            <div class="result-content glass">
+                <div class="result-icon" style="background: linear-gradient(135deg, #3b82f6, #06b6d4);">
+                    <i data-lucide="trophy"></i>
+                </div>
+                <h2>Great Effort!</h2>
+                <div class="result-stats">
+                    <div class="result-stat">
+                        <span class="label">Solved</span>
+                        <span class="value" id="correct">0</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="label">XP Earned</span>
+                        <span class="value highlight" id="final-xp">+0</span>
+                    </div>
+                </div>
+                <div class="result-actions">
+                    <button onclick="location.reload()" class="btn btn-primary">
+                        <i data-lucide="refresh-cw"></i> Play Again
+                    </button>
+                    <a href="{% url 'game_dashboard' %}" class="btn btn-outline">
+                        <i data-lucide="home"></i> Back to Games
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.game-page { padding: 100px 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.game-container { max-width: 600px; width: 100%; padding: 2rem; border-radius: 2rem; text-align: center; }
+.game-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; text-align: left; }
+.game-title h1 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; margin-bottom: 0.25rem; }
+.title-icon { color: #06b6d4; }
+.game-title p { color: #94a3b8; font-size: 0.9rem; }
+.game-stats { display: flex; gap: 1rem; }
+.stat-item { background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 0.75rem; text-align: center; }
+.stat-item .stat-label { display: block; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
+.stat-item .stat-value { font-size: 1.25rem; font-weight: 700; }
+.stat-item.timer .stat-value { color: #ef4444; }
+
+.game-start { padding: 3rem 1rem; }
+.start-content { text-align: center; }
+.start-icon { width: 80px; height: 80px; background: linear-gradient(135deg, #3b82f6, #06b6d4); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+.start-icon i { width: 40px; height: 40px; color: #fff; }
+.start-content h2 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+.start-content > p { color: #94a3b8; margin-bottom: 1.5rem; }
+.start-info { list-style: none; padding: 0; margin-bottom: 2rem; }
+.start-info li { padding: 0.5rem; color: #cbd5e1; }
+.start-button { display: inline-flex; align-items: center; gap: 0.5rem; padding: 1rem 2.5rem; font-size: 1.1rem; font-weight: 600; background: linear-gradient(135deg, #3b82f6, #06b6d4); border: none; border-radius: 1rem; color: #fff; cursor: pointer; transition: all 0.3s ease; }
+.start-button:hover { transform: scale(1.05); box-shadow: 0 8px 24px rgba(59,130,246,0.4); }
+
+.game-play { padding: 1rem 0; }
+.question-box { font-size: 1.25rem; font-weight: 600; margin: 2rem 0 2.5rem; color: #fff; padding: 1.5rem; background: rgba(255,255,255,0.05); border-radius: 1rem; }
+.answers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; max-width: 450px; margin: 0 auto; }
+.answer-btn { padding: 1.25rem; font-size: 1rem; font-weight: 600; background: rgba(255,255,255,0.05); border: 2px solid var(--glass-border); border-radius: 1rem; color: #fff; cursor: pointer; transition: all 0.2s ease; }
+.answer-btn:hover { background: rgba(59,130,246,0.2); border-color: #3b82f6; transform: scale(1.02); }
+
+.result-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 100; }
+.result-modal.show { display: flex; }
+.result-content { padding: 3rem; border-radius: 2rem; text-align: center; max-width: 400px; }
+.result-icon { width: 70px; height: 70px; background: linear-gradient(135deg, #3b82f6, #06b6d4); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+.result-icon i { width: 35px; height: 35px; color: #fff; }
+.result-content h2 { font-size: 2rem; margin-bottom: 1.5rem; }
+.result-stats { display: flex; justify-content: center; gap: 2rem; margin-bottom: 2rem; }
+.result-stat { text-align: center; }
+.result-stat .label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem; }
+.result-stat .value { font-size: 1.75rem; font-weight: 700; }
+.result-stat .value.highlight { color: #06b6d4; }
+.result-actions { display: flex; flex-direction: column; gap: 0.75rem; }
+.result-actions .btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.result-actions .btn i { width: 18px; height: 18px; }
+</style>
+
+<script>
+var questions = [
+    {q: "What is the SI unit of force?", options: ["Newton", "Joule", "Watt", "Pascal"], ans: 0},
+    {q: "Force = mass × ___?", options: ["Acceleration", "Velocity", "Distance", "Time"], ans: 0},
+    {q: "Speed of light is approximately?", options: ["3×10⁸ m/s", "3×10⁶ m/s", "3×10⁴ m/s", "3×10² m/s"], ans: 0},
+    {q: "Potential energy formula?", options: ["mgh", "½mv²", "ma", "mv"], ans: 0},
+    {q: "1 Joule equals?", options: ["1 N·m", "1 N", "1 m", "1 kg"], ans: 0},
+    {q: "Acceleration due to gravity?", options: ["9.8 m/s²", "9.8 m/s", "9.8 m", "9.8 kg"], ans: 0},
+    {q: "Kinetic energy formula?", options: ["½mv²", "mgh", "ma", "mv²"], ans: 0},
+    {q: "Work done is measured in?", options: ["Joules", "Watts", "Newtons", "Meters"], ans: 0},
+    {q: "Momentum equals?", options: ["mv", "ma", "mg", "mr"], ans: 0},
+    {q: "Power is measured in?", options: ["Watts", "Joules", "Newtons", "Meters"], ans: 0},
+    {q: "Force of gravity acts?", options: ["Towards center of Earth", "Away from Earth", "Parallel", "Zero"], ans: 0},
+    {q: "First law of motion is also called?", options: ["Law of Inertia", "Law of Energy", "Law of Power", "Law of Force"], ans: 0},
+    {q: "Friction always ___ motion?", options: ["Opposes", "Helps", "Does nothing", "Changes"], ans: 0},
+    {q: "Weight is a ___ force?", options: ["Gravitational", "Magnetic", "Electric", "Nuclear"], ans: 0},
+    {q: "At equilibrium, net force is?", options: ["Zero", "Maximum", "Increasing", "Decreasing"], ans: 0},
+];
+
+var currentQuestion = {};
+var score = 0;
+var correct = 0;
+var streak = 0;
+var gameTimer = null;
+var timeLeft = 120;
+
+function startGame() {
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('game-area').style.display = 'block';
+    document.getElementById('result-screen').classList.remove('show');
+    score = 0; correct = 0; streak = 0; timeLeft = 120;
+    newQuestion();
+    gameTimer = setInterval(function() {
+        timeLeft--;
+        document.getElementById('timer').textContent = timeLeft;
+        if (timeLeft <= 0) { clearInterval(gameTimer); endGame(); }
+    }, 1000);
+}
+
+function newQuestion() {
+    currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+    document.getElementById('question-text').textContent = currentQuestion.q;
+    var answers = [...currentQuestion.options];
+    answers.sort(function() { return Math.random() - 0.5; });
+    var grid = document.getElementById('answers');
+    grid.innerHTML = '';
+    for (var i = 0; i < answers.length; i++) {
+        var btn = document.createElement('button');
+        btn.className = 'answer-btn';
+        btn.textContent = answers[i];
+        btn.onclick = (function(idx) { return function() { checkAnswer(idx, answers); }; })(i);
+        grid.appendChild(btn);
+    }
+}
+
+function checkAnswer(idx, options) {
+    var correctIdx = currentQuestion.options.indexOf(currentQuestion.options[currentQuestion.ans]);
+    if (idx === correctIdx) { correct++; streak++; score += 15; if (streak > 5) score += 5; } else { streak = 0; }
+    document.getElementById('score').textContent = score;
+    document.getElementById('streak').textContent = streak;
+    newQuestion();
+}
+
+function endGame() {
+    document.getElementById('correct').textContent = correct;
+    document.getElementById('final-xp').textContent = '+' + score + ' XP';
+    document.getElementById('result-screen').classList.add('show');
+}
+
+document.addEventListener('DOMContentLoaded', function() { if (window.lucide) lucide.createIcons(); });
+</script>
+{% endblock %}

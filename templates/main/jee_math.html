@@ -1,0 +1,239 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="game-page">
+    <div class="game-container glass">
+        <div class="game-header">
+            <div class="game-title">
+                <h1><i data-lucide="calculator" class="title-icon"></i> JEE Math</h1>
+                <p>Advanced Mathematics for Engineering Entrance</p>
+            </div>
+            <div class="game-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Question</span>
+                    <span class="stat-value" id="qnum">1</span>/20
+                </div>
+                <div class="stat-item timer">
+                    <span class="stat-label">Time</span>
+                    <span class="stat-value" id="timer">600</span>s
+                </div>
+            </div>
+        </div>
+
+        <div id="start-screen" class="game-start">
+            <div class="start-content">
+                <div class="start-icon" style="background: linear-gradient(135deg, #ef4444, #f97316);">
+                    <i data-lucide="calculator"></i>
+                </div>
+                <h2>JEE Math Challenge</h2>
+                <p>Test your engineering entrance math skills!</p>
+                <ul class="start-info">
+                    <li>🎯 25 XP per correct answer</li>
+                    <li>⏱️ 10 minutes</li>
+                    <li>📝 20 questions</li>
+                </ul>
+                <button onclick="startGame()" class="start-button">
+                    <i data-lucide="play"></i> Start Challenge
+                </button>
+            </div>
+        </div>
+
+        <div id="game-area" style="display:none;" class="game-play">
+            <div class="problem-box">
+                <p id="question">Question?</p>
+            </div>
+            
+            <div class="options" id="options"></div>
+        </div>
+
+        <div id="result-screen" class="result-modal">
+            <div class="result-content glass">
+                <div class="result-icon" style="background: linear-gradient(135deg, #ef4444, #f97316);">
+                    <i data-lucide="trophy"></i>
+                </div>
+                <h2>JEE Math Complete!</h2>
+                <div class="result-stats">
+                    <div class="result-stat">
+                        <span class="label">Score</span>
+                        <span class="value" id="final-score">0</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="label">XP Earned</span>
+                        <span class="value highlight" id="final-xp">+0</span>
+                    </div>
+                </div>
+                <div class="result-actions">
+                    <button onclick="location.reload()" class="btn btn-primary">
+                        <i data-lucide="refresh-cw"></i> Try Again
+                    </button>
+                    <a href="{% url 'game_dashboard' %}" class="btn btn-outline">
+                        <i data-lucide="home"></i> Back to Games
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.game-page { padding: 100px 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.game-container { max-width: 700px; width: 100%; padding: 2rem; border-radius: 2rem; text-align: center; }
+.game-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; text-align: left; }
+.game-title h1 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; margin-bottom: 0.25rem; }
+.title-icon { color: #f97316; }
+.game-title p { color: #94a3b8; font-size: 0.9rem; }
+.game-stats { display: flex; gap: 1rem; }
+.stat-item { background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 0.75rem; text-align: center; }
+.stat-item .stat-label { display: block; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
+.stat-item .stat-value { font-size: 1.25rem; font-weight: 700; }
+.stat-item.timer .stat-value { color: #ef4444; }
+
+.game-start { padding: 3rem 1rem; }
+.start-content { text-align: center; }
+.start-icon { width: 80px; height: 80px; background: linear-gradient(135deg, #ef4444, #f97316); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+.start-icon i { width: 40px; height: 40px; color: #fff; }
+.start-content h2 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+.start-content > p { color: #94a3b8; margin-bottom: 1.5rem; }
+.start-info { list-style: none; padding: 0; margin-bottom: 2rem; }
+.start-info li { padding: 0.5rem; color: #cbd5e1; }
+.start-button { display: inline-flex; align-items: center; gap: 0.5rem; padding: 1rem 2.5rem; font-size: 1.1rem; font-weight: 600; background: linear-gradient(135deg, #ef4444, #f97316); border: none; border-radius: 1rem; color: #fff; cursor: pointer; transition: all 0.3s ease; }
+.start-button:hover { transform: scale(1.05); box-shadow: 0 8px 24px rgba(239,68,68,0.4); }
+
+.game-play { padding: 1rem 0; }
+.problem-box { background: rgba(255,255,255,0.05); padding: 2rem; border-radius: 1.5rem; margin: 1.5rem 0; }
+.problem-box p { color: #fff; font-size: 1.25rem; font-weight: 600; }
+.options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; max-width: 650px; margin: 0 auto; }
+.option-btn { padding: 1.25rem; font-size: 1rem; font-weight: 600; background: rgba(255,255,255,0.05); border: 2px solid var(--glass-border); border-radius: 1rem; color: #fff; cursor: pointer; transition: all 0.2s ease; }
+.option-btn:hover { background: rgba(239,68,68,0.2); border-color: #ef4444; }
+
+.result-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 100; }
+.result-modal.show { display: flex; }
+.result-content { padding: 3rem; border-radius: 2rem; text-align: center; max-width: 400px; }
+.result-icon { width: 70px; height: 70px; background: linear-gradient(135deg, #ef4444, #f97316); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+.result-icon i { width: 35px; height: 35px; color: #fff; }
+.result-content h2 { font-size: 2rem; margin-bottom: 1.5rem; }
+.result-stats { display: flex; justify-content: center; gap: 2rem; margin-bottom: 2rem; }
+.result-stat { text-align: center; }
+.result-stat .label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem; }
+.result-stat .value { font-size: 1.75rem; font-weight: 700; }
+.result-stat .value.highlight { color: #f97316; }
+.result-actions { display: flex; flex-direction: column; gap: 0.75rem; }
+.result-actions .btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.result-actions .btn i { width: 18px; height: 18px; }
+</style>
+
+<script>
+var jeeMathQuestions = [
+    {q: "If z = 1 + i, then |z| = ?", a: "√2", o: ["1", "√2", "2", "√3"]},
+    {q: "log₂(8) = ?", a: "3", o: ["2", "3", "4", "5"]},
+    {q: " derivative of x³ is ?", a: "3x²", o: ["x³", "3x²", "2x", "3x"]},
+    {q: "∫2x dx = ? + C", a: "x²", o: ["x²", "2x²", "x", "2x"]},
+    {q: "If x + 1/x = 2, then x² + 1/x² = ?", a: "2", o: ["1", "2", "4", "0"]},
+    {q: "sin(90°) = ?", a: "1", o: ["0", "1", "-1", "0.5"]},
+    {q: "cos(0°) = ?", a: "1", o: ["0", "1", "-1", "0.5"]},
+    {q: "25² - 24² = ?", a: "49", o: ["1", "49", "25", "24"]},
+    {q: "3! = ?", a: "6", o: ["3", "6", "9", "12"]},
+    {q: "P(5,3) = ?", a: "60", o: ["60", "15", "30", "120"]},
+    {q: "C(5,2) = ?", a: "10", o: ["10", "20", "5", "15"]},
+    {q: "If A = {1,2,3}, n(P(A)) = ?", a: "8", o: ["6", "8", "9", "7"]},
+    {q: "lim(x→0) sin(x)/x = ?", a: "1", o: ["0", "1", "∞", "2"]},
+    {q: "d/dx(e^x) = ?", a: "e^x", o: ["e^x", "xe^x", "e^(x+1)", "0"]},
+    {q: "d/dx(log x) = ?", a: "1/x", o: ["x", "1/x", "log x", "0"]},
+    {q: "tan(45°) = ?", a: "1", o: ["0", "1", "√3", "∞"]},
+    {q: "sin²θ + cos²θ = ?", a: "1", o: ["0", "1", "2", "-1"]},
+    {q: "If f(x) = x², f'(2) = ?", a: "4", o: ["2", "4", "8", "0"]},
+    {q: "∫e^x dx = ? + C", a: "e^x", o: ["e^x", "xe^x", "e^x + 1", "0"]},
+    {q: "(x+1)² = ?", a: "x² + 2x +1", o: ["x²+1", "x²+2x+1", "x²-2x+1", "x²+x+1"]}
+];
+
+var currentQ = {};
+var qIndex = 0;
+var score = 0;
+var correct = 0;
+var timer = null;
+var timeLeft = 600;
+
+function shuffle(array) {
+    for (var i = array.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+    }
+}
+
+function startGame() {
+    jeeMathQuestions = jeeMathQuestions.slice().sort(function() { return Math.random() - 0.5; });
+    qIndex = 0;
+    score = 0;
+    correct = 0;
+    timeLeft = 600;
+    
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('game-area').style.display = 'block';
+    document.getElementById('result-screen').classList.remove('show');
+    
+    loadQuestion();
+    
+    timer = setInterval(function() {
+        timeLeft--;
+        document.getElementById('timer').textContent = timeLeft;
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            endGame();
+        }
+    }, 1000);
+}
+
+function loadQuestion() {
+    if (qIndex >= jeeMathQuestions.length) {
+        endGame();
+        return;
+    }
+    
+    currentQ = jeeMathQuestions[qIndex];
+    document.getElementById('question').textContent = currentQ.q;
+    document.getElementById('qnum').textContent = (qIndex + 1);
+    
+    var opts = currentQ.o.slice().sort(function() { return Math.random() - 0.5; });
+    var grid = document.getElementById('options');
+    grid.innerHTML = '';
+    
+    for (var i = 0; i < opts.length; i++) {
+        var btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.textContent = opts[i];
+        btn.onclick = (function(ans) {
+            return function() { checkAnswer(ans); };
+        })(opts[i]);
+        grid.appendChild(btn);
+    }
+}
+
+function checkAnswer(ans) {
+    if (ans === currentQ.a) {
+        correct++;
+        score += 25;
+    }
+    qIndex++;
+    loadQuestion();
+}
+
+function endGame() {
+    clearInterval(timer);
+    var xp = score;
+    document.getElementById('final-score').textContent = correct + "/20";
+    document.getElementById('final-xp').textContent = '+' + xp + ' XP';
+    document.getElementById('result-screen').classList.add('show');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.lucide) lucide.createIcons();
+});
+</script>
+{% endblock %}

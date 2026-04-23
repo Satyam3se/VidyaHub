@@ -1,0 +1,449 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="game-page">
+    <div class="game-container glass">
+        <div class="game-header">
+            <div class="game-title">
+                <h1><i data-lucide="heart-pulse" class="title-icon"></i> NEET Biology</h1>
+                <p>Medical Entrance Preparation</p>
+            </div>
+            <div class="game-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Question</span>
+                    <span class="stat-value" id="qnum">1</span>/25
+                </div>
+                <div class="stat-item timer">
+                    <span class="stat-label">Time</span>
+                    <span class="stat-value" id="timer">900</span>s
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="progress-dots" id="progress-dots"></div>
+        </div>
+
+        <div id="start-screen" class="game-start">
+            <div class="start-content">
+                <div class="start-icon" style="background: linear-gradient(135deg, #10b981, #34d399);">
+                    <i data-lucide="heart-pulse"></i>
+                </div>
+                <h2>NEET Biology Challenge</h2>
+                <p>25 questions from Human Anatomy, Genetics, Botany & more!</p>
+                <ul class="start-info">
+                    <li>🎯 20 XP per correct answer</li>
+                    <li>⏱️ 15 minutes</li>
+                    <li>🏥 Medical entrance preparation</li>
+                </ul>
+                <div class="category-badges">
+                    <span class="cat-badge">Anatomy</span>
+                    <span class="cat-badge">Genetics</span>
+                    <span class="cat-badge">Botany</span>
+                    <span class="cat-badge">Zoology</span>
+                </div>
+                <button onclick="startGame()" class="start-button">
+                    <i data-lucide="play"></i> Start NEET Biology
+                </button>
+            </div>
+        </div>
+
+        <div id="game-area" style="display:none;" class="game-play">
+            <!-- Question Card -->
+            <div class="question-card" id="question-card">
+                <div class="question-number">Question <span id="q-num">1</span></div>
+                <p class="question-text" id="question">Loading question...</p>
+                <div class="question-category" id="q-category">Anatomy</div>
+            </div>
+            
+            <div class="options" id="options"></div>
+            
+            <!-- Feedback Overlay -->
+            <div id="feedback-overlay" class="feedback-overlay hidden">
+                <div class="feedback-content">
+                    <i data-lucide="check-circle" class="feedback-correct"></i>
+                    <i data-lucide="x-circle" class="feedback-wrong"></i>
+                    <p id="feedback-text"></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="result-screen" class="result-modal">
+            <div class="result-content glass">
+                <div class="result-animation">
+                    <div class="result-icon" style="background: linear-gradient(135deg, #10b981, #34d399);">
+                        <i data-lucide="award"></i>
+                    </div>
+                </div>
+                
+                <div class="result-header">
+                    <h2 id="result-title">Exam Complete!</h2>
+                    <p id="result-subtitle">Great effort!</p>
+                </div>
+                
+                <div class="result-stats-grid">
+                    <div class="result-stat-box">
+                        <span class="stat-icon"><i data-lucide="check-circle"></i></span>
+                        <span class="stat-num" id="correct-count">0</span>
+                        <span class="stat-label">Correct</span>
+                    </div>
+                    <div class="result-stat-box">
+                        <span class="stat-icon"><i data-lucide="x-circle"></i></span>
+                        <span class="stat-num" id="wrong-count">0</span>
+                        <span class="stat-label">Wrong</span>
+                    </div>
+                    <div class="result-stat-box">
+                        <span class="stat-icon"><i data-lucide="zap"></i></span>
+                        <span class="stat-num highlight" id="final-xp">+0</span>
+                        <span class="stat-label">XP Earned</span>
+                    </div>
+                    <div class="result-stat-box">
+                        <span class="stat-icon"><i data-lucide="target"></i></span>
+                        <span class="stat-num" id="accuracy">0%</span>
+                        <span class="stat-label">Accuracy</span>
+                    </div>
+                </div>
+                
+                <div class="rank-tier" id="rank-tier">
+                    <i data-lucide="trophy"></i>
+                    <span id="rank-text">Medical Student</span>
+                </div>
+                
+                <div class="result-actions">
+                    <button onclick="location.reload()" class="btn btn-primary">
+                        <i data-lucide="refresh-cw"></i> Attempt Again
+                    </button>
+                    <a href="{% url 'game_dashboard' %}" class="btn btn-outline">
+                        <i data-lucide="home"></i> Back to Games
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.game-page { padding: 100px 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.game-container { max-width: 750px; width: 100%; padding: 2rem; border-radius: 2rem; text-align: center; }
+.game-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; text-align: left; flex-wrap: wrap; gap: 1rem; }
+.game-title h1 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; margin-bottom: 0.25rem; }
+.title-icon { color: #34d399; }
+.game-title p { color: #94a3b8; font-size: 0.9rem; }
+.game-stats { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.stat-item { background: rgba(255,255,255,0.05); padding: 0.5rem 0.75rem; border-radius: 0.75rem; text-align: center; min-width: 70px; }
+.stat-item .stat-label { display: block; font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-item .stat-value { font-size: 1.1rem; font-weight: 700; }
+.stat-item.timer .stat-value { color: #ef4444; }
+
+/* Progress Bar */
+.progress-container { margin-bottom: 1.5rem; }
+.progress-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 0.75rem; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #10b981, #34d399); border-radius: 3px; width: 0%; transition: width 0.3s ease; }
+.progress-dots { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.progress-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: all 0.2s ease; }
+.progress-dot.correct { background: #10b981; }
+.progress-dot.wrong { background: #ef4444; }
+.progress-dot.current { background: #34d399; transform: scale(1.3); }
+
+.game-start { padding: 2rem 1rem; }
+.start-content { text-align: center; }
+.start-icon { width: 90px; height: 90px; background: linear-gradient(135deg, #10b981, #34d399); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; box-shadow: 0 10px 30px rgba(16,185,129,0.3); }
+.start-icon i { width: 45px; height: 45px; color: #fff; }
+.start-content h2 { font-size: 2rem; margin-bottom: 0.5rem; }
+.start-content > p { color: #94a3b8; margin-bottom: 1.5rem; }
+.start-info { list-style: none; padding: 0; margin-bottom: 1.5rem; }
+.start-info li { padding: 0.5rem; color: #cbd5e1; }
+
+.category-badges { display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 2rem; }
+.cat-badge { padding: 0.35rem 0.75rem; background: rgba(16,185,129,0.15); color: #34d399; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+
+.start-button { display: inline-flex; align-items: center; gap: 0.5rem; padding: 1rem 2.5rem; font-size: 1.1rem; font-weight: 600; background: linear-gradient(135deg, #10b981, #34d399); border: none; border-radius: 1rem; color: #fff; cursor: pointer; transition: all 0.3s ease; }
+.start-button:hover { transform: scale(1.05); box-shadow: 0 10px 30px rgba(16,185,129,0.4); }
+
+/* Question Card */
+.game-play { padding: 1rem 0; }
+.question-card { background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 1.5rem; border-radius: 1.5rem; margin-bottom: 1.5rem; text-align: left; transition: all 0.3s ease; }
+.question-card:hover { border-color: rgba(16,185,129,0.3); }
+.question-number { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
+.question-text { color: #fff; font-size: 1.25rem; font-weight: 600; line-height: 1.6; margin-bottom: 0.75rem; }
+.question-category { display: inline-block; padding: 0.25rem 0.75rem; background: rgba(16,185,129,0.15); color: #34d399; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+
+/* Options */
+.options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+.option-btn { position: relative; padding: 1.25rem; font-size: 1rem; font-weight: 600; background: rgba(255,255,255,0.05); border: 2px solid var(--glass-border); border-radius: 1rem; color: #fff; cursor: pointer; transition: all 0.2s ease; text-align: left; }
+.option-btn:hover:not(:disabled) { background: rgba(16,185,129,0.15); border-color: #10b981; transform: translateY(-2px); }
+.option-btn:disabled { cursor: default; }
+.option-btn.correct { background: rgba(16,185,129,0.3); border-color: #10b981; animation: pulse-correct 0.5s ease; }
+.option-btn.wrong { background: rgba(239,68,68,0.3); border-color: #ef4444; animation: shake 0.5s ease; }
+.option-btn .option-letter { position: absolute; left: 1rem; top: 1rem; width: 24px; height: 24px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+
+/* Animation Keyframes */
+@keyframes pulse-correct { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+/* Result Modal */
+.result-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(10px); }
+.result-modal.show { display: flex; }
+.result-content { padding: 2.5rem; border-radius: 2rem; text-align: center; max-width: 500px; width: 100%; animation: scaleIn 0.5s ease; }
+@keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.result-animation { margin-bottom: 1.5rem; }
+.result-icon { width: 80px; height: 80px; background: linear-gradient(135deg, #10b981, #34d399); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 10px 40px rgba(16,185,129,0.4); animation: bounce 0.6s ease; }
+@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.result-icon i { width: 40px; height: 40px; color: #fff; }
+
+.result-header h2 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+.result-header p { color: #94a3b8; margin-bottom: 1.5rem; }
+
+.result-stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.result-stat-box { background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 1rem; text-align: center; }
+.result-stat-box .stat-icon { display: flex; justify-content: center; margin-bottom: 0.5rem; color: #94a3b8; }
+.result-stat-box .stat-num { display: block; font-size: 1.5rem; font-weight: 700; }
+.result-stat-box .stat-num.highlight { color: #34d399; }
+.result-stat-box .stat-label { font-size: 0.75rem; color: #94a3b8; }
+
+.rank-tier { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: rgba(16,185,129,0.15); border-radius: 999px; margin-bottom: 2rem; color: #34d399; font-weight: 600; }
+.rank-tier i { width: 20px; height: 20px; }
+
+.result-actions { display: flex; flex-direction: column; gap: 0.75rem; }
+.result-actions .btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.result-actions .btn i { width: 18px; height: 18px; }
+
+@media (max-width: 600px) {
+    .game-header { flex-direction: column; align-items: flex-start; }
+    .game-stats { width: 100%; justify-content: space-between; }
+    .options { grid-template-columns: 1fr; }
+}
+</style>
+
+<script>
+var neetBiologyQuestions = [
+    // Human Anatomy
+    {q: "Which is the largest bone in the human body?", c: "Anatomy", o: ["Femur", "Tibia", "Humerus", "Fibula"], a: 0},
+    {q: "The normal resting heart rate is:", c: "Anatomy", o: ["60-80 bpm", "60-100 bpm", "72-80 bpm", "60-120 bpm"], a: 1},
+    {q: "Which chamber of heart has thickest walls?", c: "Anatomy", o: ["Left atrium", "Right atrium", "Left ventricle", "Right ventricle"], a: 2},
+    {q: "The total number of bones in adult human body is:", c: "Anatomy", o: ["186", "206", "216", "226"], a: 1},
+    {q: "Which is the smallest bone in human body?", c: "Anatomy", o: ["Malleus", "Incus", "Stapes", "Hyoid"], a: 2},
+    {q: "The blood group with Universal donor is:", c: "Anatomy", o: ["A", "B", "AB", "O"], a: 3},
+    {q: "Total volume of blood in adult human is:", c: "Anatomy", o: ["4-5 liters", "5-6 liters", "3-4 liters", "6-7 liters"], a: 1},
+    {q: "The normal pH of human blood is:", c: "Anatomy", o: ["6.35-6.45", "7.35-7.45", "7.0-7.5", "6.5-7.0"], a: 1},
+    {q: "Which part of brain controls balance?", c: "Anatomy", o: ["Cerebrum", "Cerebellum", "Medulla", "Hypothalamus"], a: 1},
+    {q: "The largest organ in human body is:", c: "Anatomy", o: ["Liver", "Skin", "Large intestine", "Lungs"], a: 1},
+    
+    // Genetics
+    {q: "DNA stands for:", c: "Genetics", o: ["Deoxyribose Nucleic Acid", "Deoxyribonucleic Acid", "Dinitrogen Acid", "Diapedisis Nucleus"], a: 1},
+    {q: "The building blocks of DNA are:", c: "Genetics", o: ["Amino acids", "Fatty acids", "Nucleotides", "Sugars"], a: 2},
+    {q: "In DNA, adenine pairs with:", c: "Genetics", o: ["Cytosine", "Guanine", "Thymine", "Uracil"], a: 2},
+    {q: "Total number of chromosomes in humans is:", c: "Genetics", o: ["44", "46", "48", "45"], a: 1},
+    {q: "The sex chromosomes in male are:", c: "Genetics", o: ["XX", "XY", "XZ", "YZ"], a: 1},
+    {q: "Huntington's disease shows which inheritance?", c: "Genetics", o: ["Autosomal dominant", "Autosomal recessive", "X-linked", "Mitochondrial"], a: 0},
+    {q: "Sickle cell anemia is caused by defect in:", c: "Genetics", o: ["White blood cells", "Red blood cells", "Platelets", "Plasma"], a: 1},
+    {q: "Mendel's Law of Dominance states:", c: "Genetics", o: ["Recessive traits appear", "Dominant traits appear", "Both appear", "Neither appears"], a: 1},
+    
+    // Botany
+    {q: "The powerhouse of the cell is:", c: "Botany", o: ["Nucleus", "Mitochondria", "Ribosome", "Chloroplast"], a: 1},
+    {q: "Photosynthesis takes place in:", c: "Botany", o: ["Mitochondria", "Ribosome", "Chloroplast", "Nucleus"], a: 2},
+    {q: "The green pigment in plants is:", c: "Botany", o: ["Carotene", "Chlorophyll", "Xanthophyll", "Anthocyanin"], a: 1},
+    {q: "Water is absorbed by plant roots by:", c: "Botany", o: ["Osmosis", "Diffusion", "Active transport", "All of these"], a: 3},
+    {q: "The stem of potato is called:", c: "Botany", o: ["Rhizome", "Tuber", "Bulb", "Corm"], a: 1},
+    {q: "Binary fission is seen in:", c: "Botany", o: ["Amoeba", " yeast", "Bacteria", "Both A and C"], a: 3},
+    {q: "The food prepared by plants is stored as:", c: "Botany", o: ["Starch", "Cellulose", "Glucose", "Sucrose"], a: 0},
+    
+    // Zoology
+    {q: "The national animal of India is:", c: "Zoology", o: ["Lion", "Tiger", "Elephant", "Peacock"], a: 1},
+    {q: "Which mammal can fly?", c: "Zoology", o: ["Flying squirrel", "Bat", "Sugar glider", "Flying fox"], a: 1},
+    {q: "The largest mammal is:", c: "Zoology", o: ["Elephant", "Blue whale", "Giraffe", "Shark"], a: 1},
+    {q: "Snakes belong to which class?", c: "Zoology", o: ["Mammalia", "Reptilia", "Amphibia", "Aves"], a: 1},
+    {q: "The process of shedding skin in snakes is called:", c: "Zoology", o: ["Ecdysis", "Metamorphosis", "Molt", "Slough"], a: 0},
+    {q: "Birds have:", c: "Zoology", o: ["Teeth", "No teeth", "Some have teeth", "Only upper teeth"], a: 1},
+    {q: "The most intelligent animal is:", c: "Zoology", o: ["Dog", "Dolphin", "Chimpanzee", "Elephant"], a: 2},
+    {q: "Which blood group is universal acceptor?", c: "Anatomy", o: ["A", "B", "AB", "O"], a: 2},
+    
+    // Cell Biology
+    {q: "The unit of life is:", c: "Cell", o: ["Tissue", "Organ", "Cell", "Molecule"], a: 2},
+    {q: "Ribosomes are site of:", c: "Cell", o: ["Respiration", "Photosynthesis", "Protein synthesis", "Cell division"], a: 2},
+    {q: "Mitosis results in:", c: "Cell", o: ["Haploid cells", "Diploid cells", "Gametes", "Variations"], a: 1},
+    {q: "The cell membrane is made of:", c: "Cell", o: ["Only proteins", "Only lipids", "Phospholipid bilayer", "Carbohydrates"], a: 2},
+    {q: "Chromosomes condense during:", c: "Cell", o: ["Interphase", "Prophase", "Metaphase", "Anaphase"], a: 1},
+];
+
+// Shuffle function
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+var questions = [];
+var currentQ = {};
+var qIndex = 0;
+var score = 0;
+var correct = 0;
+var wrong = 0;
+var timer = null;
+var timeLeft = 900; // 15 minutes
+
+function startGame() {
+    questions = shuffleArray([...neetBiologyQuestions]).slice(0, 25);
+    qIndex = 0;
+    score = 0;
+    correct = 0;
+    wrong = 0;
+    timeLeft = 900;
+    
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('game-area').style.display = 'block';
+    document.getElementById('result-screen').classList.remove('show');
+    
+    // Setup progress dots
+    const dotsContainer = document.getElementById('progress-dots');
+    dotsContainer.innerHTML = '';
+    for (let i = 0; i < 25; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'progress-dot';
+        dot.id = 'dot-' + i;
+        dotsContainer.appendChild(dot);
+    }
+    
+    loadQuestion();
+    startTimer();
+}
+
+function startTimer() {
+    timer = setInterval(function() {
+        timeLeft--;
+        document.getElementById('timer').textContent = timeLeft;
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            endGame();
+        }
+    }, 1000);
+}
+
+function loadQuestion() {
+    if (qIndex >= questions.length) {
+        endGame();
+        return;
+    }
+    
+    currentQ = questions[qIndex];
+    
+    // Update progress
+    document.getElementById('progress-fill').style.width = ((qIndex) / 25 * 100) + '%';
+    document.getElementById('q-num').textContent = qIndex + 1;
+    document.getElementById('qnum').textContent = (qIndex + 1);
+    document.getElementById('score').textContent = score;
+    document.getElementById('question').textContent = currentQ.q;
+    document.getElementById('q-category').textContent = currentQ.c;
+    
+    // Update dots
+    document.querySelectorAll('.progress-dot').forEach((dot, i) => {
+        dot.className = 'progress-dot';
+        if (i < qIndex) dot.classList.add('correct');
+        if (i === qIndex) dot.classList.add('current');
+    });
+    
+    // Generate options
+    let letters = ['A', 'B', 'C', 'D'];
+    let options = [...currentQ.o];
+    let correctAnswer = options[currentQ.a];
+    let shuffledOptions = shuffleArray([...options]);
+    let correctIndex = shuffledOptions.indexOf(correctAnswer);
+    
+    const grid = document.getElementById('options');
+    grid.innerHTML = '';
+    
+    shuffledOptions.forEach(function(opt, i) {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.innerHTML = '<span class="option-letter">' + letters[i] + '</span>' + opt;
+        btn.onclick = function() { checkAnswer(i, shuffledOptions); this.disabled = true; };
+        grid.appendChild(btn);
+    });
+}
+
+function checkAnswer(selectedIndex, options) {
+    let isCorrect = false;
+    let correctAnswer = options[currentQ.a];
+    
+    let buttons = document.querySelectorAll('.option-btn');
+    let selectedBtn = buttons[selectedIndex];
+    
+    if (options[selectedIndex] === correctAnswer) {
+        isCorrect = true;
+        correct++;
+        score += 20;
+        selectedBtn.classList.add('correct');
+        document.getElementById('dot-' + qIndex).classList.add('correct');
+    } else {
+        wrong++;
+        selectedBtn.classList.add('wrong');
+        document.getElementById('dot-' + qIndex).classList.add('wrong');
+        
+        // Show correct answer
+        buttons.forEach((btn, i) => {
+            if (options[i] === correctAnswer) {
+                btn.classList.add('correct');
+            }
+        });
+    }
+    
+    document.getElementById('score').textContent = score;
+    qIndex++;
+    
+    setTimeout(loadQuestion, 1000);
+}
+
+function endGame() {
+    clearInterval(timer);
+    
+    let accuracy = Math.round((correct / 25) * 100);
+    
+    // Update result stats
+    document.getElementById('correct-count').textContent = correct;
+    document.getElementById('wrong-count').textContent = wrong;
+    document.getElementById('final-xp').textContent = '+' + score + ' XP';
+    document.getElementById('accuracy').textContent = accuracy + '%';
+    
+    // Determine rank
+    let rankText = "Medical Student";
+    if (accuracy >= 90) rankText = "Top Scorer - Future Doctor! 🏆";
+    else if (accuracy >= 80) rankText = "Excellent - Medical Reserve";
+    else if (accuracy >= 70) rankText = "Great Performance";
+    else if (accuracy >= 60) rankText = "Good Progress";
+    else if (accuracy >= 50) rankText = "Keep Practicing";
+    
+    document.getElementById('rank-text').textContent = rankText;
+    
+    if (accuracy >= 80) {
+        document.getElementById('result-title').textContent = "Outstanding!";
+        document.getElementById('result-subtitle').textContent = "You're ready for NEET!";
+    } else if (accuracy >= 60) {
+        document.getElementById('result-title').textContent = "Well Done!";
+        document.getElementById('result-subtitle').textContent = "Keep practicing!";
+    } else {
+        document.getElementById('result-title').textContent = "Keep Learning!";
+        document.getElementById('result-subtitle').textContent = "Practice more for better results!";
+    }
+    
+    document.getElementById('result-screen').classList.add('show');
+    
+    if (window.lucide) lucide.createIcons();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.lucide) lucide.createIcons();
+});
+</script>
+{% endblock %}

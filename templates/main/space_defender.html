@@ -1,0 +1,269 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<section class="space-arena">
+    <div class="container">
+        <div class="game-ui glass animate-down">
+            <div class="stats">
+                <div class="stat"><i data-lucide="shield" class="text-primary"></i> <span id="life">3</span></div>
+                <div class="stat"><i data-lucide="zap" class="text-warning"></i> <span id="score">0</span></div>
+            </div>
+            <div class="target-question">
+                <h3 id="question">Loading Question...</h3>
+            </div>
+            <div class="timer-box">
+                <span id="timer">60s</span>
+            </div>
+        </div>
+
+        <div id="game-container">
+            <canvas id="gameCanvas"></canvas>
+            
+            <div id="start-overlay" class="overlay glass">
+                <div class="content animate-scale">
+                    <h1>Space Defender</h1>
+                    <p>Shoot the asteroid with the CORRECT answer!</p>
+                    <button id="start-btn" class="btn btn-primary btn-large mt-4">Launch Mission</button>
+                </div>
+            </div>
+
+            <div id="game-over" class="overlay glass hidden">
+                <div class="content animate-scale">
+                    <h1 id="over-title">Mission Ended</h1>
+                    <p>Final Score: <span id="final-score">0</span></p>
+                    <div id="xp-reward" class="reward-badge">+0 XP</div>
+                    <div class="mt-4">
+                        <button onclick="location.reload()" class="btn btn-primary">Try Again</button>
+                        <a href="{% url 'game_dashboard' %}" class="btn btn-secondary ms-2">Exit</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.space-arena { padding: 7rem 0 2rem; height: 100vh; overflow: hidden; background: #020617; }
+.game-ui { 
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 1rem 2rem; border-radius: 1.5rem; margin-bottom: 1rem;
+    position: relative; z-index: 10;
+}
+.stats { display: flex; gap: 1.5rem; font-size: 1.25rem; font-weight: 800; }
+.stat { display: flex; align-items: center; gap: 0.5rem; }
+.target-question h3 { margin: 0; font-size: 1.4rem; color: #fff; text-shadow: 0 0 10px rgba(99,102,241,0.5); }
+.timer-box { font-family: monospace; font-size: 1.5rem; font-weight: 700; color: #f87171; }
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 15rem);
+    background: #000;
+    border-radius: 2rem;
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.05);
+}
+canvas { width: 100%; height: 100%; display: block; }
+
+.overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 20;
+}
+.overlay.hidden { display: none; }
+.content { text-align: center; max-width: 400px; padding: 2rem; }
+.reward-badge { 
+    display: inline-block; padding: 0.5rem 1.5rem; 
+    background: rgba(245, 158, 11, 0.2); color: #fbbf24;
+    border-radius: 99rem; font-weight: 800; margin-top: 1rem;
+}
+</style>
+
+{% block extra_js %}
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startOverlay = document.getElementById('start-overlay');
+const gameOverOverlay = document.getElementById('game-over');
+const startBtn = document.getElementById('start-btn');
+
+let width, height;
+let player, projectiles, enemies, particles;
+let score = 0, lives = 3, gameActive = false, timeLeft = 60;
+let currentQuestion = null;
+let spawnTimer = 0;
+
+const questions = [
+    { q: "12 + 13 = ?", a: "25", options: ["24", "25", "26", "23"] },
+    { q: "Capital of India?", a: "Delhi", options: ["Mumbai", "Delhi", "Kolkata", "Chennai"] },
+    { q: "5 x 6 = ?", a: "30", options: ["25", "30", "35", "20"] },
+    { q: "What is H2O?", a: "Water", options: ["Air", "Fire", "Water", "Soil"] },
+    { q: "Largest Planet?", a: "Jupiter", options: ["Earth", "Mars", "Jupiter", "Saturn"] },
+    { q: "Opposite of Cold?", a: "Hot", options: ["Warm", "Cool", "Hot", "Ice"] },
+    { q: "20 / 4 = ?", a: "5", options: ["4", "5", "6", "10"] },
+    { q: "Color of Sun?", a: "Yellow", options: ["Red", "Blue", "Yellow", "Green"] }
+];
+
+function resize() {
+    width = canvas.width = canvas.parentElement.clientWidth;
+    height = canvas.height = canvas.parentElement.clientHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+class Player {
+    constructor() {
+        this.x = width / 2;
+        this.y = height - 50;
+        this.size = 30;
+    }
+    draw() {
+        ctx.fillStyle = '#6366f1';
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - this.size);
+        ctx.lineTo(this.x - this.size, this.y + this.size);
+        ctx.lineTo(this.x + this.size, this.y + this.size);
+        ctx.closePath();
+        ctx.fill();
+        // Glow
+        ctx.shadowBlur = 15; ctx.shadowColor = '#6366f1';
+    }
+}
+
+class Projectile {
+    constructor(x, y) {
+        this.x = x; this.y = y;
+        this.speed = 7; this.r = 4;
+    }
+    update() { this.y -= this.speed; }
+    draw() {
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
+    }
+}
+
+class Enemy {
+    constructor(text, isCorrect) {
+        this.x = Math.random() * (width - 100) + 50;
+        this.y = -50;
+        this.text = text;
+        this.isCorrect = isCorrect;
+        this.speed = 1.5 + Math.random();
+        this.r = 40;
+    }
+    update() { this.y += this.speed; }
+    draw() {
+        ctx.shadowBlur = 10; ctx.shadowColor = this.isCorrect ? '#10b981' : '#f87171';
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.stroke();
+        
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center'; ctx.fillText(this.text, this.x, this.y + 5);
+        ctx.shadowBlur = 0;
+    }
+}
+
+function nextQuestion() {
+    currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+    document.getElementById('question').textContent = currentQuestion.q;
+}
+
+function initGame() {
+    player = new Player();
+    projectiles = []; enemies = []; particles = [];
+    score = 0; lives = 3; timeLeft = 60;
+    gameActive = true;
+    nextQuestion();
+    animate();
+    startTimer();
+}
+
+function startTimer() {
+    const t = setInterval(() => {
+        if (!gameActive) { clearInterval(t); return; }
+        timeLeft--;
+        document.getElementById('timer').textContent = `${timeLeft}s`;
+        if (timeLeft <= 0) gameOver("Time Up!");
+    }, 1000);
+}
+
+function gameOver(reason) {
+    gameActive = false;
+    gameOverOverlay.classList.remove('hidden');
+    document.getElementById('over-title').textContent = reason;
+    document.getElementById('final-score').textContent = score;
+    const xp = score * 20;
+    document.getElementById('xp-reward').textContent = `+${xp} XP`;
+    
+    fetch('/api/game/results/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ xp: xp, game: 'space_defender' })
+    });
+}
+
+function animate() {
+    if (!gameActive) return;
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(0,0,width,height);
+    
+    player.draw();
+    
+    // Spawn enemies
+    spawnTimer++;
+    if (spawnTimer > 100) {
+        currentQuestion.options.forEach(opt => {
+            enemies.push(new Enemy(opt, opt === currentQuestion.a));
+        });
+        spawnTimer = 0;
+    }
+    
+    projectiles.forEach((p, pi) => {
+        p.update(); p.draw();
+        if (p.y < 0) projectiles.splice(pi, 1);
+        
+        enemies.forEach((e, ei) => {
+            const dist = Math.hypot(p.x - e.x, p.y - e.y);
+            if (dist < e.r) {
+                projectiles.splice(pi, 1);
+                if (e.isCorrect) {
+                    score++; document.getElementById('score').textContent = score;
+                    enemies = []; nextQuestion();
+                } else {
+                    lives--; document.getElementById('life').textContent = lives;
+                    enemies.splice(ei, 1);
+                    if (lives <= 0) gameOver("Mission Failed");
+                }
+            }
+        });
+    });
+    
+    enemies.forEach((e, ei) => {
+        e.update(); e.draw();
+        if (e.y > height + 50) enemies.splice(ei, 1);
+    });
+    
+    requestAnimationFrame(animate);
+}
+
+canvas.addEventListener('mousemove', (e) => {
+    if (gameActive) {
+        const rect = canvas.getBoundingClientRect();
+        player.x = e.clientX - rect.left;
+    }
+});
+
+canvas.addEventListener('mousedown', () => {
+    if (gameActive) projectiles.push(new Projectile(player.x, player.y - 30));
+});
+
+startBtn.onclick = () => {
+    startOverlay.classList.add('hidden');
+    initGame();
+};
+</script>
+{% endblock %}
+{% endblock %}
