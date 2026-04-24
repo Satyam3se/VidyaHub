@@ -79,12 +79,16 @@ WSGI_APPLICATION = 'vidyahub.wsgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# https://docs.djangoproject.com/en/5.2/topics/db/sqlite3/
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        'OPTIONS': {
+            'check_same_thread': False,
+            'timeout': 30,
+        },
     }
 }
 
@@ -144,6 +148,21 @@ REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
 # Socket.io Configuration
 SOCKETIO_SERVER_URL = os.getenv('SOCKETIO_SERVER_URL', 'http://localhost:8000')
+
+# CSRF Trusted Origins for Localtunnel and Production
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.loca.lt',
+    'https://*.onrender.com',
+]
+
+# Dynamically add current tunnel URL from environment
+if os.getenv('SOCKETIO_SERVER_URL'):
+    url = os.getenv('SOCKETIO_SERVER_URL')
+    if '.loca.lt' in url and url.startswith('http://'):
+        url = url.replace('http://', 'https://')
+    if url not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(url)
+
 
 # Authentication URLs
 LOGIN_URL = 'login'

@@ -1,20 +1,23 @@
 """
 WSGI config for vidyahub project.
-
-It exposes the WSGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
 """
-# import eventlet
-# eventlet.monkey_patch()
-
 import os
+
+PRODUCTION = os.environ.get('PRODUCTION', os.environ.get('RENDER_EXTERNAL_HOSTNAME') is not None).lower() == 'true'
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'vidyahub.settings')
 
-import socketio
+if PRODUCTION:
+    import eventlet
+    eventlet.monkey_patch()
+
 from django.core.wsgi import get_wsgi_application
-from .socket_server import sio
 
 django_app = get_wsgi_application()
-application = socketio.WSGIApp(sio, django_app)
+
+if PRODUCTION:
+    from socketio import Server, WSGIApp
+    from .socket_server import sio
+    application = WSGIApp(sio, django_app, socketio_path='/socket.io')
+else:
+    application = django_app

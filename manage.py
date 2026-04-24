@@ -3,10 +3,13 @@
 import os
 import sys
 
+import sqlite3
+sqlite3.threadsafety = 2
 
 def main():
     """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'vidyahub.settings')
+    os.environ['PRODUCTION'] = 'False'
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

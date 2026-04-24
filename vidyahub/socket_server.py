@@ -10,7 +10,7 @@ from main.models import MCQQuestion, Chapter, Subject, Profile
 from main.utils import update_user_score
 from django.contrib.auth.models import User
 
-# Create a Socket.io server with eventlet for async
+# Create a Socket.IO server with eventlet for async
 sio = socketio.Server(async_mode='eventlet', cors_allowed_origins='*')
 
 # Matchmaking queue: {queue_key: [ {sid, user_id, username, grade, target_exam} ]}
