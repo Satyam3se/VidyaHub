@@ -10,7 +10,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.10
       - key: DEBUG
-        value: "false"
+        value: "true"
       - key: SECRET_KEY
         generateValue: true
       - key: AI_SIMULATION_MODE
