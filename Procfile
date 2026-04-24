@@ -1,1 +1,1 @@
-web: python run_app.py
+web: gunicorn vidyahub.wsgi:application --bind 0.0.0.0:$PORT
