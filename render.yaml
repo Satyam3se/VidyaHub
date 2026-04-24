@@ -4,17 +4,13 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt && python manage.py migrate && python manage.py collectstatic --noinput
-    startCommand: gunicorn vidyahub.wsgi:application --bind 0.0.0.0:$PORT --worker-class eventlet
+    startCommand: gunicorn vidyahub.wsgi:application --bind 0.0.0.0:$PORT --worker-class eventlet --timeout 120
     envVars:
       - key: PYTHON_VERSION
-        value: 3.13.7
+        value: 3.11.10
       - key: DEBUG
         value: "false"
       - key: SECRET_KEY
         generateValue: true
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: GROQ_API_KEY
-        sync: false
+      - key: AI_SIMULATION_MODE
+        value: "False"
