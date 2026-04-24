@@ -12,8 +12,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'vidyahub.settings')
 
 import socketio
 from django.core.wsgi import get_wsgi_application
-from django.contrib.staticfiles.handlers import StaticFilesHandler
 from .socket_server import sio
 
-django_app = StaticFilesHandler(get_wsgi_application())
+django_app = get_wsgi_application()
 application = socketio.WSGIApp(sio, django_app)
