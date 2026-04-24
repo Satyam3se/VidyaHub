@@ -1,1 +1,1 @@
-web: gunicorn vidyahub.wsgi:application
+web: python run_app.py
