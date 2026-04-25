@@ -157,12 +157,26 @@
 
 <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 <script>
-    // Connect to socket server
-    const socket = io('http://localhost:8001', {
-        transports: ['websocket', 'polling'],
+    // Connect to socket server - intelligently determine URL
+    // If we're on a local IP/localhost, use port 8001. 
+    // Otherwise, use the same origin but with socket.io path.
+    let SOCKET_SERVER_URL = window.location.origin;
+    if (SOCKET_SERVER_URL.includes('localhost') || SOCKET_SERVER_URL.includes('192.168.') || SOCKET_SERVER_URL.includes('127.0.0.1')) {
+        // Local/Network access: use port 8001
+        SOCKET_SERVER_URL = SOCKET_SERVER_URL.replace(':8000', ':8001');
+        if (!SOCKET_SERVER_URL.includes(':8001')) {
+            SOCKET_SERVER_URL += ':8001';
+        }
+    }
+    
+    console.log('Attempting to connect to Battle Server at:', SOCKET_SERVER_URL);
+    
+    const socket = io(SOCKET_SERVER_URL, {
+        transports: ['polling', 'websocket'],
         reconnection: true,
         reconnectionDelay: 1000,
-        reconnectionAttempts: 10
+        reconnectionAttempts: 15,
+        path: '/socket.io/'
     });
     
     const subjectId = {{ subject.id }};

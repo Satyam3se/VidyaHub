@@ -1,0 +1,386 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<section class="space-arena">
+    <div class="container">
+        <div class="game-ui glass animate-down">
+            <div class="stats">
+                <div class="stat"><i data-lucide="shield" class="text-primary"></i> <span id="life">3</span></div>
+                <div class="stat"><i data-lucide="zap" class="text-warning"></i> <span id="score">0</span></div>
+            </div>
+            <div class="target-question">
+                <h3 id="question">Loading Question...</h3>
+            </div>
+            <div class="timer-box">
+                <span id="timer">60s</span>
+            </div>
+        </div>
+
+        <div id="game-container">
+            <canvas id="gameCanvas"></canvas>
+            
+            <div id="start-overlay" class="overlay glass">
+                <div class="content animate-scale">
+                    <h1>Quiz Dash</h1>
+                    <p>Use LEFT/RIGHT arrows or TAP to switch lanes. Smash through the CORRECT answer!</p>
+                    <button id="start-btn" class="btn btn-primary btn-large mt-4">Start Dashing</button>
+                </div>
+            </div>
+
+            <div id="game-over" class="overlay glass hidden">
+                <div class="content animate-scale">
+                    <h1 id="over-title">Game Over</h1>
+                    <p>Final Score: <span id="final-score">0</span></p>
+                    <div id="xp-reward" class="reward-badge">+0 XP</div>
+                    <div class="mt-4">
+                        <button onclick="location.reload()" class="btn btn-primary">Try Again</button>
+                        <a href="{% url 'game_dashboard' %}" class="btn btn-secondary ms-2">Exit</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.space-arena { padding: 7rem 0 2rem; height: 100vh; overflow: hidden; background: #020617; }
+.game-ui { 
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 1rem 2rem; border-radius: 1.5rem; margin-bottom: 1rem;
+    position: relative; z-index: 10;
+}
+.stats { display: flex; gap: 1.5rem; font-size: 1.25rem; font-weight: 800; }
+.stat { display: flex; align-items: center; gap: 0.5rem; }
+.target-question h3 { margin: 0; font-size: 1.4rem; color: #fff; text-shadow: 0 0 10px rgba(99,102,241,0.5); text-align: center; }
+.timer-box { font-family: monospace; font-size: 1.5rem; font-weight: 700; color: #f87171; }
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 15rem);
+    background: #000;
+    border-radius: 2rem;
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.05);
+}
+canvas { width: 100%; height: 100%; display: block; }
+
+.overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 20;
+}
+.overlay.hidden { display: none; }
+.content { text-align: center; max-width: 400px; padding: 2rem; }
+.reward-badge { 
+    display: inline-block; padding: 0.5rem 1.5rem; 
+    background: rgba(245, 158, 11, 0.2); color: #fbbf24;
+    border-radius: 99rem; font-weight: 800; margin-top: 1rem;
+}
+</style>
+
+{% block extra_js %}
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startOverlay = document.getElementById('start-overlay');
+const gameOverOverlay = document.getElementById('game-over');
+const startBtn = document.getElementById('start-btn');
+
+let width, height, laneWidth;
+let player;
+let wall = null; // We only have one wall approaching at a time
+let score = 0, lives = 3, gameActive = false, timeLeft = 60;
+let currentQuestion = null;
+let baseSpeed = 4;
+let particles = [];
+
+const questions = [
+    { q: "12 + 13 = ?", a: "25", options: ["24", "25", "26", "23"] },
+    { q: "Capital of India?", a: "Delhi", options: ["Mumbai", "Delhi", "Kolkata", "Chennai"] },
+    { q: "5 x 6 = ?", a: "30", options: ["25", "30", "35", "20"] },
+    { q: "What is H2O?", a: "Water", options: ["Air", "Fire", "Water", "Soil"] },
+    { q: "Largest Planet?", a: "Jupiter", options: ["Earth", "Mars", "Jupiter", "Saturn"] },
+    { q: "Opposite of Cold?", a: "Hot", options: ["Warm", "Cool", "Hot", "Ice"] },
+    { q: "20 / 4 = ?", a: "5", options: ["4", "5", "6", "10"] },
+    { q: "Color of Sun?", a: "Yellow", options: ["Red", "Blue", "Yellow", "Green"] },
+    { q: "Fastest Land Animal?", a: "Cheetah", options: ["Lion", "Cheetah", "Horse", "Leopard"] },
+    { q: "How many legs does a spider have?", a: "8", options: ["6", "8", "10", "12"] }
+];
+
+function resize() {
+    width = canvas.width = canvas.parentElement.clientWidth;
+    height = canvas.height = canvas.parentElement.clientHeight;
+    laneWidth = width / 4;
+    if (player) {
+        player.y = height - 100;
+        player.targetX = player.lane * laneWidth + laneWidth / 2;
+        player.x = player.targetX;
+    }
+}
+window.addEventListener('resize', resize);
+resize();
+
+class Player {
+    constructor() {
+        this.lane = 1; // 0, 1, 2, 3
+        this.size = 40;
+        this.y = height - 100;
+        this.targetX = this.lane * laneWidth + laneWidth / 2;
+        this.x = this.targetX;
+    }
+    
+    moveLeft() {
+        if (this.lane > 0) this.lane--;
+        this.targetX = this.lane * laneWidth + laneWidth / 2;
+    }
+    
+    moveRight() {
+        if (this.lane < 3) this.lane++;
+        this.targetX = this.lane * laneWidth + laneWidth / 2;
+    }
+    
+    update() {
+        // Smooth transition
+        this.x += (this.targetX - this.x) * 0.2;
+    }
+    
+    draw() {
+        ctx.fillStyle = '#06b6d4';
+        ctx.shadowBlur = 20; 
+        ctx.shadowColor = '#06b6d4';
+        
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - this.size/2);
+        ctx.lineTo(this.x + this.size/2, this.y + this.size/2);
+        ctx.lineTo(this.x - this.size/2, this.y + this.size/2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x; this.y = y;
+        this.vx = (Math.random() - 0.5) * 10;
+        this.vy = (Math.random() - 0.5) * 10;
+        this.life = 1.0;
+        this.color = color;
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= 0.05;
+    }
+    draw() {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 4, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+class Wall {
+    constructor(question) {
+        this.y = -60;
+        this.height = 60;
+        this.speed = baseSpeed;
+        this.options = [...question.options];
+        // Shuffle the options so they appear in random lanes
+        this.options.sort(() => Math.random() - 0.5);
+        this.correctIndex = this.options.indexOf(question.a);
+    }
+    
+    update() {
+        this.y += this.speed;
+    }
+    
+    draw() {
+        for (let i = 0; i < 4; i++) {
+            const blockX = i * laneWidth;
+            
+            // All blocks look identical
+            ctx.fillStyle = '#1e293b';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#0ea5e9';
+            
+            ctx.beginPath();
+            ctx.roundRect(blockX + 5, this.y, laneWidth - 10, this.height, 8);
+            ctx.fill();
+            
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this.options[i], blockX + laneWidth/2, this.y + this.height/2);
+            ctx.shadowBlur = 0;
+        }
+    }
+}
+
+function createExplosion(x, y, color) {
+    for (let i = 0; i < 20; i++) {
+        particles.push(new Particle(x, y, color));
+    }
+}
+
+function nextQuestion() {
+    currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+    document.getElementById('question').textContent = currentQuestion.q;
+    wall = new Wall(currentQuestion);
+    baseSpeed += 0.2; // Increase speed over time
+}
+
+function initGame() {
+    player = new Player();
+    score = 0; lives = 3; timeLeft = 60; baseSpeed = 4;
+    particles = [];
+    document.getElementById('score').textContent = score;
+    document.getElementById('life').textContent = lives;
+    gameActive = true;
+    nextQuestion();
+    animate();
+    startTimer();
+}
+
+function startTimer() {
+    const t = setInterval(() => {
+        if (!gameActive) { clearInterval(t); return; }
+        timeLeft--;
+        document.getElementById('timer').textContent = `${timeLeft}s`;
+        if (timeLeft <= 0) gameOver("Time Up!");
+    }, 1000);
+}
+
+function gameOver(reason) {
+    gameActive = false;
+    gameOverOverlay.classList.remove('hidden');
+    document.getElementById('over-title').textContent = reason;
+    document.getElementById('final-score').textContent = score;
+    const xp = score * 25;
+    document.getElementById('xp-reward').textContent = `+${xp} XP`;
+    
+    fetch('/api/game/results/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ xp: xp, game: 'quiz_dash' })
+    });
+}
+
+function drawLanes() {
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 2;
+    // Draw lane dividers
+    for (let i = 1; i < 4; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * laneWidth, 0);
+        ctx.lineTo(i * laneWidth, height);
+        ctx.stroke();
+    }
+}
+
+function animate() {
+    if (!gameActive) return;
+    
+    // Background with fading trail
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(0,0,width,height);
+    
+    drawLanes();
+    
+    player.update();
+    player.draw();
+    
+    // Handle particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.update();
+        p.draw();
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+    
+    if (wall) {
+        wall.update();
+        wall.draw();
+        
+        // Collision detection
+        if (wall.y + wall.height > player.y - player.size/2 && wall.y < player.y + player.size/2) {
+            // Player hit the wall
+            if (player.lane === wall.correctIndex) {
+                // Correct lane!
+                score++;
+                document.getElementById('score').textContent = score;
+                createExplosion(player.x, player.y, '#10b981');
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.3)'; // Green flash
+                ctx.fillRect(0,0,width,height);
+                nextQuestion();
+            } else {
+                // Wrong lane!
+                lives--;
+                document.getElementById('life').textContent = lives;
+                createExplosion(player.x, player.y, '#ef4444');
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.3)'; // Red flash
+                ctx.fillRect(0,0,width,height);
+                
+                if (lives <= 0) {
+                    gameOver("Crash!");
+                } else {
+                    nextQuestion();
+                }
+            }
+        } else if (wall.y > height) {
+            // Missed the wall completely (shouldn't happen unless player moves down, but just in case)
+            nextQuestion();
+        }
+    }
+    
+    requestAnimationFrame(animate);
+}
+
+// Controls
+document.addEventListener('keydown', (e) => {
+    if (!gameActive) return;
+    if (e.key === 'ArrowLeft') player.moveLeft();
+    if (e.key === 'ArrowRight') player.moveRight();
+});
+
+// Click/Touch to switch lanes
+canvas.addEventListener('mousedown', (e) => {
+    if (!gameActive) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const clickedLane = Math.floor(x / laneWidth);
+    if (clickedLane >= 0 && clickedLane < 4) {
+        player.lane = clickedLane;
+        player.targetX = player.lane * laneWidth + laneWidth / 2;
+    }
+});
+
+canvas.addEventListener('touchstart', (e) => {
+    if (!gameActive) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.touches[0].clientX - rect.left;
+    const clickedLane = Math.floor(x / laneWidth);
+    if (clickedLane >= 0 && clickedLane < 4) {
+        player.lane = clickedLane;
+        player.targetX = player.lane * laneWidth + laneWidth / 2;
+    }
+}, {passive: true});
+
+startBtn.onclick = () => {
+    startOverlay.classList.add('hidden');
+    initGame();
+};
+</script>
+{% endblock %}
+{% endblock %}

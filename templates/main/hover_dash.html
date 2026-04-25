@@ -1,0 +1,404 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<section class="space-arena">
+    <div class="container">
+        <div class="game-ui glass animate-down">
+            <div class="stats">
+                <div class="stat"><i data-lucide="shield" class="text-primary"></i> <span id="life">3</span></div>
+                <div class="stat"><i data-lucide="zap" class="text-warning"></i> <span id="score">0</span></div>
+            </div>
+            <div class="target-question">
+                <h3 id="question">Loading Question...</h3>
+            </div>
+            <div class="timer-box">
+                <span id="timer">60s</span>
+            </div>
+        </div>
+
+        <div id="game-container">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            
+            <div id="start-overlay" class="overlay glass">
+                <div class="content animate-scale">
+                    <h1>Hover Dash</h1>
+                    <p>Click, Tap, or press SPACE to fire thrusters! Smash through the CORRECT answer.</p>
+                    <button id="start-btn" class="btn btn-primary btn-large mt-4">Ignition</button>
+                </div>
+            </div>
+
+            <div id="game-over" class="overlay glass hidden">
+                <div class="content animate-scale">
+                    <h1 id="over-title">Game Over</h1>
+                    <p>Final Score: <span id="final-score">0</span></p>
+                    <div id="xp-reward" class="reward-badge">+0 XP</div>
+                    <div class="mt-4">
+                        <button onclick="location.reload()" class="btn btn-primary">Try Again</button>
+                        <a href="{% url 'game_dashboard' %}" class="btn btn-secondary ms-2">Exit</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.space-arena { padding: 7rem 0 2rem; height: 100vh; overflow: hidden; background: #020617; }
+.game-ui { 
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 1rem 2rem; border-radius: 1.5rem; margin-bottom: 1rem;
+    position: relative; z-index: 10;
+}
+.stats { display: flex; gap: 1.5rem; font-size: 1.25rem; font-weight: 800; }
+.stat { display: flex; align-items: center; gap: 0.5rem; }
+.target-question h3 { margin: 0; font-size: 1.4rem; color: #fff; text-shadow: 0 0 10px rgba(99,102,241,0.5); text-align: center; }
+.timer-box { font-family: monospace; font-size: 1.5rem; font-weight: 700; color: #f87171; }
+
+#game-container {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    height: 60vh;
+    background: #000;
+    border-radius: 2rem;
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.05);
+    cursor: pointer;
+}
+canvas { width: 100%; height: 100%; display: block; object-fit: cover; }
+
+.overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 20;
+}
+.overlay.hidden { display: none; }
+.content { text-align: center; max-width: 400px; padding: 2rem; }
+.reward-badge { 
+    display: inline-block; padding: 0.5rem 1.5rem; 
+    background: rgba(245, 158, 11, 0.2); color: #fbbf24;
+    border-radius: 99rem; font-weight: 800; margin-top: 1rem;
+}
+</style>
+
+{% block extra_js %}
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startOverlay = document.getElementById('start-overlay');
+const gameOverOverlay = document.getElementById('game-over');
+const startBtn = document.getElementById('start-btn');
+
+let width = canvas.width;
+let height = canvas.height;
+
+let player;
+let wall = null;
+let particles = [];
+let score = 0, lives = 3, gameActive = false, timeLeft = 60;
+let baseSpeed = 4;
+let currentQuestion = null;
+
+const questions = [
+    { q: "12 + 13 = ?", a: "25", options: ["24", "25", "26", "23"] },
+    { q: "Capital of India?", a: "Delhi", options: ["Mumbai", "Delhi", "Kolkata", "Chennai"] },
+    { q: "5 x 6 = ?", a: "30", options: ["25", "30", "35", "20"] },
+    { q: "What is H2O?", a: "Water", options: ["Air", "Fire", "Water", "Soil"] },
+    { q: "Largest Planet?", a: "Jupiter", options: ["Earth", "Mars", "Jupiter", "Saturn"] },
+    { q: "Opposite of Cold?", a: "Hot", options: ["Warm", "Cool", "Hot", "Ice"] },
+    { q: "20 / 4 = ?", a: "5", options: ["4", "5", "6", "10"] },
+    { q: "Color of Sun?", a: "Yellow", options: ["Red", "Blue", "Yellow", "Green"] },
+    { q: "Fastest Bird?", a: "Peregrine Falcon", options: ["Eagle", "Ostrich", "Peregrine Falcon", "Hawk"] },
+    { q: "How many hours in a day?", a: "24", options: ["12", "20", "24", "48"] }
+];
+
+class Player {
+    constructor() {
+        this.x = 150;
+        this.y = height / 2;
+        this.vy = 0;
+        this.gravity = 0.4;
+        this.flapForce = -7;
+        this.size = 20;
+    }
+    
+    flap() {
+        this.vy = this.flapForce;
+        // thrust particles
+        createExplosion(this.x - this.size, this.y, '#f97316', 5);
+    }
+    
+    update() {
+        this.vy += this.gravity;
+        this.y += this.vy;
+    }
+    
+    draw() {
+        ctx.fillStyle = '#f97316'; // Orange hovercraft
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#f97316';
+        
+        ctx.beginPath();
+        ctx.moveTo(this.x + this.size, this.y);
+        ctx.lineTo(this.x - this.size, this.y - this.size/1.5);
+        ctx.lineTo(this.x - this.size/2, this.y);
+        ctx.lineTo(this.x - this.size, this.y + this.size/1.5);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Window
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(this.x + this.size/4, this.y, 4, 0, Math.PI*2);
+        ctx.fill();
+        
+        ctx.shadowBlur = 0;
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x; this.y = y;
+        this.vx = (Math.random() - 0.5) * 6;
+        this.vy = (Math.random() - 0.5) * 6;
+        this.life = 1.0;
+        this.color = color;
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= 0.05;
+    }
+    draw() {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 3, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+class Wall {
+    constructor(question) {
+        this.x = width + 50;
+        this.width = 60;
+        this.speed = baseSpeed;
+        this.options = [...question.options];
+        this.options.sort(() => Math.random() - 0.5);
+        this.correctIndex = this.options.indexOf(question.a);
+        
+        this.blockHeight = height / 4;
+        this.broken = false;
+        this.passed = false;
+    }
+    
+    update() {
+        this.x -= this.speed;
+    }
+    
+    draw() {
+        for (let i = 0; i < 4; i++) {
+            // If broken and correct, don't draw it
+            if (this.broken && i === this.correctIndex) continue;
+            
+            let blockY = i * this.blockHeight;
+            
+            ctx.fillStyle = '#1e293b';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#eab308'; // All glow yellow
+            
+            ctx.beginPath();
+            ctx.rect(this.x, blockY + 5, this.width, this.blockHeight - 10);
+            ctx.fill();
+            
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Draw text sideways or wrapped? Let's just draw it normally, if it spills it's okay, or truncate
+            let text = this.options[i];
+            ctx.fillText(text, this.x + this.width/2, blockY + this.blockHeight/2);
+            ctx.shadowBlur = 0;
+        }
+    }
+}
+
+function createExplosion(x, y, color, count=20) {
+    for (let i = 0; i < count; i++) {
+        particles.push(new Particle(x, y, color));
+    }
+}
+
+function nextQuestion() {
+    currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+    document.getElementById('question').textContent = currentQuestion.q;
+    wall = new Wall(currentQuestion);
+}
+
+function resetLevel() {
+    player = new Player();
+    particles = [];
+    nextQuestion();
+}
+
+function initGame() {
+    score = 0; lives = 3; timeLeft = 60; baseSpeed = 4;
+    document.getElementById('score').textContent = score;
+    document.getElementById('life').textContent = lives;
+    gameActive = true;
+    resetLevel();
+    animate();
+    startTimer();
+}
+
+function startTimer() {
+    const t = setInterval(() => {
+        if (!gameActive) { clearInterval(t); return; }
+        timeLeft--;
+        document.getElementById('timer').textContent = `${timeLeft}s`;
+        if (timeLeft <= 0) gameOver("Time Up!");
+    }, 1000);
+}
+
+function gameOver(reason) {
+    gameActive = false;
+    gameOverOverlay.classList.remove('hidden');
+    document.getElementById('over-title').textContent = reason;
+    document.getElementById('final-score').textContent = score;
+    const xp = score * 30;
+    document.getElementById('xp-reward').textContent = `+${xp} XP`;
+    
+    fetch('/api/game/results/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ xp: xp, game: 'hover_dash' })
+    });
+}
+
+function animate() {
+    if (!gameActive) return;
+    
+    // Background with fading trail
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0,0,width,height);
+    
+    // Draw starfield
+    ctx.fillStyle = '#fff';
+    for(let i=0; i<10; i++){
+        let sx = (width - ((Date.now() / 10 + i * 100) % width));
+        let sy = (Math.sin(i) * 5000) % height;
+        if(sy < 0) sy += height;
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath(); ctx.arc(sx, sy, 1, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1.0;
+    
+    player.update();
+    
+    // Ceiling / Floor collision
+    if (player.y - player.size < 0 || player.y + player.size > height) {
+        crash("Hit the ground/ceiling!");
+        return;
+    }
+    
+    if (wall) {
+        wall.update();
+        wall.draw();
+        
+        // Wall Collision logic
+        if (!wall.broken && player.x + player.size > wall.x && player.x - player.size < wall.x + wall.width) {
+            // Determine which block player is currently hitting
+            let blockIndex = Math.floor(player.y / wall.blockHeight);
+            
+            if (blockIndex === wall.correctIndex) {
+                // Correct! Smash it
+                wall.broken = true;
+                score++;
+                document.getElementById('score').textContent = score;
+                baseSpeed += 0.2; // Speed up
+                createExplosion(wall.x + wall.width/2, player.y, '#10b981', 30);
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.3)';
+                ctx.fillRect(0,0,width,height);
+            } else {
+                // Wrong block!
+                crash("Smashed into the wrong answer!");
+                return;
+            }
+        }
+        
+        // Passed the wall
+        if (wall.broken && !wall.passed && wall.x + wall.width < player.x - player.size) {
+            wall.passed = true;
+        }
+        
+        // Wall off screen
+        if (wall.x + wall.width < 0) {
+            nextQuestion();
+        }
+    }
+    
+    // Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.update(); p.draw();
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+    
+    player.draw();
+    
+    requestAnimationFrame(animate);
+}
+
+function crash(reason) {
+    lives--;
+    document.getElementById('life').textContent = lives;
+    createExplosion(player.x, player.y, '#ef4444', 40);
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.5)';
+    ctx.fillRect(0,0,width,height);
+    
+    if (lives <= 0) {
+        gameOver(reason);
+    } else {
+        // slight pause then reset
+        gameActive = false;
+        setTimeout(() => {
+            if (lives > 0) {
+                resetLevel();
+                gameActive = true;
+                lastUpdate = performance.now();
+                requestAnimationFrame(animate);
+            }
+        }, 1000);
+    }
+}
+
+// Controls
+function handleInput(e) {
+    if (!gameActive) return;
+    if (e.type !== 'touchstart') e.preventDefault();
+    player.flap();
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') handleInput(e);
+});
+canvas.addEventListener('mousedown', handleInput);
+canvas.addEventListener('touchstart', handleInput, {passive: true});
+
+startBtn.onclick = () => {
+    startOverlay.classList.add('hidden');
+    initGame();
+};
+</script>
+{% endblock %}
+{% endblock %}

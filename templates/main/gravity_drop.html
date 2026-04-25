@@ -22,15 +22,15 @@
             
             <div id="start-overlay" class="overlay glass">
                 <div class="content animate-scale">
-                    <h1>Space Defender</h1>
-                    <p>Shoot the asteroid with the CORRECT answer!</p>
-                    <button id="start-btn" class="btn btn-primary btn-large mt-4">Launch Mission</button>
+                    <h1>Gravity Drop</h1>
+                    <p>Move your basket to catch the CORRECT falling answer!</p>
+                    <button id="start-btn" class="btn btn-primary btn-large mt-4">Start Dropping</button>
                 </div>
             </div>
 
             <div id="game-over" class="overlay glass hidden">
                 <div class="content animate-scale">
-                    <h1 id="over-title">Mission Ended</h1>
+                    <h1 id="over-title">Game Over</h1>
                     <p>Final Score: <span id="final-score">0</span></p>
                     <div id="xp-reward" class="reward-badge">+0 XP</div>
                     <div class="mt-4">
@@ -91,10 +91,10 @@ const gameOverOverlay = document.getElementById('game-over');
 const startBtn = document.getElementById('start-btn');
 
 let width, height;
-let player, projectiles, enemies, particles;
+let player, blocks;
 let score = 0, lives = 3, gameActive = false, timeLeft = 60;
 let currentQuestion = null;
-let spawnTimer = 0;
+let baseSpeed = 2;
 
 const questions = [
     { q: "12 + 13 = ?", a: "25", options: ["24", "25", "26", "23"] },
@@ -104,65 +104,75 @@ const questions = [
     { q: "Largest Planet?", a: "Jupiter", options: ["Earth", "Mars", "Jupiter", "Saturn"] },
     { q: "Opposite of Cold?", a: "Hot", options: ["Warm", "Cool", "Hot", "Ice"] },
     { q: "20 / 4 = ?", a: "5", options: ["4", "5", "6", "10"] },
-    { q: "Color of Sun?", a: "Yellow", options: ["Red", "Blue", "Yellow", "Green"] }
+    { q: "Color of Sun?", a: "Yellow", options: ["Red", "Blue", "Yellow", "Green"] },
+    { q: "Highest Mountain?", a: "Everest", options: ["K2", "Everest", "Fuji", "Alps"] },
+    { q: "8 + 7 = ?", a: "15", options: ["14", "15", "16", "13"] },
+    { q: "Primary Source of Energy?", a: "Sun", options: ["Moon", "Wind", "Sun", "Water"] }
 ];
 
 function resize() {
     width = canvas.width = canvas.parentElement.clientWidth;
     height = canvas.height = canvas.parentElement.clientHeight;
+    if (player) {
+        player.y = height - 30;
+    }
 }
 window.addEventListener('resize', resize);
 resize();
 
 class Player {
     constructor() {
-        this.x = width / 2;
-        this.y = height - 50;
-        this.size = 30;
+        this.width = 100;
+        this.height = 20;
+        this.x = width / 2 - this.width / 2;
+        this.y = height - 30;
     }
     draw() {
         ctx.fillStyle = '#6366f1';
+        // Draw basket
         ctx.beginPath();
-        ctx.moveTo(this.x, this.y - this.size);
-        ctx.lineTo(this.x - this.size, this.y + this.size);
-        ctx.lineTo(this.x + this.size, this.y + this.size);
-        ctx.closePath();
+        ctx.roundRect(this.x, this.y, this.width, this.height, 10);
         ctx.fill();
         // Glow
         ctx.shadowBlur = 15; ctx.shadowColor = '#6366f1';
     }
 }
 
-class Projectile {
-    constructor(x, y) {
-        this.x = x; this.y = y;
-        this.speed = 7; this.r = 4;
-    }
-    update() { this.y -= this.speed; }
-    draw() {
-        ctx.fillStyle = '#fbbf24';
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
-    }
-}
-
-class Enemy {
-    constructor(text, isCorrect) {
-        this.x = Math.random() * (width - 100) + 50;
-        this.y = -50;
+class Block {
+    constructor(text, isCorrect, index, total) {
+        // Divide width into columns
+        const colWidth = width / total;
+        this.width = Math.min(120, colWidth - 20);
+        this.height = 40;
+        this.x = index * colWidth + (colWidth / 2) - (this.width / 2);
+        this.y = -50 - (Math.random() * 50); // Start slightly offscreen
         this.text = text;
         this.isCorrect = isCorrect;
-        this.speed = 1.5 + Math.random();
-        this.r = 40;
+        this.speed = baseSpeed + (Math.random() * 1);
+        this.active = true;
     }
-    update() { this.y += this.speed; }
+    update() { 
+        this.y += this.speed; 
+    }
     draw() {
-        ctx.shadowBlur = 10; ctx.shadowColor = '#f87171'; // Identical color to hide the answer
+        if (!this.active) return;
+        ctx.shadowBlur = 10; 
+        // All blocks look the same to hide the correct answer
+        ctx.shadowColor = '#8b5cf6';
         ctx.fillStyle = '#1e293b';
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.stroke();
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.width, this.height, 8);
+        ctx.fill();
         
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Arial';
-        ctx.textAlign = 'center'; ctx.fillText(this.text, this.x, this.y + 5);
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)'; 
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        ctx.fillStyle = '#fff'; 
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center'; 
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.text, this.x + this.width / 2, this.y + this.height / 2);
         ctx.shadowBlur = 0;
     }
 }
@@ -170,12 +180,23 @@ class Enemy {
 function nextQuestion() {
     currentQuestion = questions[Math.floor(Math.random() * questions.length)];
     document.getElementById('question').textContent = currentQuestion.q;
+    
+    // Spawn blocks
+    blocks = [];
+    currentQuestion.options.forEach((opt, index) => {
+        blocks.push(new Block(opt, opt === currentQuestion.a, index, currentQuestion.options.length));
+    });
+    
+    // Increase speed slightly
+    baseSpeed += 0.1;
 }
 
 function initGame() {
     player = new Player();
-    projectiles = []; enemies = []; particles = [];
-    score = 0; lives = 3; timeLeft = 60;
+    blocks = [];
+    score = 0; lives = 3; timeLeft = 60; baseSpeed = 2;
+    document.getElementById('score').textContent = score;
+    document.getElementById('life').textContent = lives;
     gameActive = true;
     nextQuestion();
     animate();
@@ -202,63 +223,94 @@ function gameOver(reason) {
     fetch('/api/game/results/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-        body: JSON.stringify({ xp: xp, game: 'space_defender' })
+        body: JSON.stringify({ xp: xp, game: 'gravity_drop' })
     });
 }
 
 function animate() {
     if (!gameActive) return;
-    ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(0,0,width,height);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)'; // Slight trail effect
+    ctx.fillRect(0,0,width,height);
     
     player.draw();
     
-    // Spawn enemies
-    spawnTimer++;
-    if (spawnTimer > 100) {
-        currentQuestion.options.forEach(opt => {
-            enemies.push(new Enemy(opt, opt === currentQuestion.a));
-        });
-        spawnTimer = 0;
-    }
+    let allBlocksMissed = true;
     
-    projectiles.forEach((p, pi) => {
-        p.update(); p.draw();
-        if (p.y < 0) projectiles.splice(pi, 1);
+    blocks.forEach((b) => {
+        if (!b.active) return;
+        b.update(); 
+        b.draw();
         
-        enemies.forEach((e, ei) => {
-            const dist = Math.hypot(p.x - e.x, p.y - e.y);
-            if (dist < e.r) {
-                projectiles.splice(pi, 1);
-                if (e.isCorrect) {
-                    score++; document.getElementById('score').textContent = score;
-                    enemies = []; nextQuestion();
+        // Check collision with player
+        if (b.y + b.height > player.y && b.y < player.y + player.height) {
+            if (b.x + b.width > player.x && b.x < player.x + player.width) {
+                // Collision!
+                b.active = false;
+                if (b.isCorrect) {
+                    score++; 
+                    document.getElementById('score').textContent = score;
+                    // Flash screen green
+                    ctx.fillStyle = 'rgba(16, 185, 129, 0.3)';
+                    ctx.fillRect(0,0,width,height);
+                    nextQuestion();
                 } else {
-                    lives--; document.getElementById('life').textContent = lives;
-                    enemies.splice(ei, 1);
-                    if (lives <= 0) gameOver("Mission Failed");
+                    lives--; 
+                    document.getElementById('life').textContent = lives;
+                    // Flash screen red
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+                    ctx.fillRect(0,0,width,height);
+                    if (lives <= 0) gameOver("Out of Lives!");
                 }
             }
-        });
+        }
+        
+        // If the block is still above the bottom, we haven't missed everything
+        if (b.y < height) {
+            allBlocksMissed = false;
+        } else if (b.active && b.isCorrect) {
+            // Correct block hit the ground!
+            b.active = false;
+            lives--;
+            document.getElementById('life').textContent = lives;
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+            ctx.fillRect(0,0,width,height);
+            if (lives <= 0) {
+                gameOver("Missed the correct answer!");
+            } else {
+                nextQuestion();
+            }
+        }
     });
     
-    enemies.forEach((e, ei) => {
-        e.update(); e.draw();
-        if (e.y > height + 50) enemies.splice(ei, 1);
-    });
+    if (allBlocksMissed) {
+        // If somehow all blocks fell and we didn't process the correct one hitting the ground
+        nextQuestion();
+    }
     
     requestAnimationFrame(animate);
 }
 
+// Controls
 canvas.addEventListener('mousemove', (e) => {
     if (gameActive) {
         const rect = canvas.getBoundingClientRect();
-        player.x = e.clientX - rect.left;
+        let targetX = e.clientX - rect.left - player.width / 2;
+        // Keep within bounds
+        targetX = Math.max(0, Math.min(width - player.width, targetX));
+        player.x = targetX;
     }
 });
 
-canvas.addEventListener('mousedown', () => {
-    if (gameActive) projectiles.push(new Projectile(player.x, player.y - 30));
-});
+// Touch controls for mobile
+canvas.addEventListener('touchmove', (e) => {
+    if (gameActive) {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        let targetX = e.touches[0].clientX - rect.left - player.width / 2;
+        targetX = Math.max(0, Math.min(width - player.width, targetX));
+        player.x = targetX;
+    }
+}, {passive: false});
 
 startBtn.onclick = () => {
     startOverlay.classList.add('hidden');

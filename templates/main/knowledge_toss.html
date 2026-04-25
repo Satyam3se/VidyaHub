@@ -1,0 +1,481 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<section class="space-arena">
+    <div class="container">
+        <div class="game-ui glass animate-down">
+            <div class="stats">
+                <div class="stat"><i data-lucide="shield" class="text-primary"></i> <span id="life">3</span></div>
+                <div class="stat"><i data-lucide="zap" class="text-warning"></i> <span id="score">0</span></div>
+            </div>
+            <div class="target-question">
+                <h3 id="question">Loading Question...</h3>
+            </div>
+            <div class="timer-box">
+                <span id="timer">60s</span>
+            </div>
+        </div>
+
+        <div id="game-container">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            
+            <div id="start-overlay" class="overlay glass">
+                <div class="content animate-scale">
+                    <h1>Knowledge Toss</h1>
+                    <p>Click and drag on the blue orb to aim. Release to shoot the CORRECT answer!</p>
+                    <button id="start-btn" class="btn btn-primary btn-large mt-4">Load Catapult</button>
+                </div>
+            </div>
+
+            <div id="game-over" class="overlay glass hidden">
+                <div class="content animate-scale">
+                    <h1 id="over-title">Game Over</h1>
+                    <p>Final Score: <span id="final-score">0</span></p>
+                    <div id="xp-reward" class="reward-badge">+0 XP</div>
+                    <div class="mt-4">
+                        <button onclick="location.reload()" class="btn btn-primary">Try Again</button>
+                        <a href="{% url 'game_dashboard' %}" class="btn btn-secondary ms-2">Exit</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.space-arena { padding: 7rem 0 2rem; height: 100vh; overflow: hidden; background: #020617; }
+.game-ui { 
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 1rem 2rem; border-radius: 1.5rem; margin-bottom: 1rem;
+    position: relative; z-index: 10;
+}
+.stats { display: flex; gap: 1.5rem; font-size: 1.25rem; font-weight: 800; }
+.stat { display: flex; align-items: center; gap: 0.5rem; }
+.target-question h3 { margin: 0; font-size: 1.4rem; color: #fff; text-shadow: 0 0 10px rgba(99,102,241,0.5); text-align: center; }
+.timer-box { font-family: monospace; font-size: 1.5rem; font-weight: 700; color: #f87171; }
+
+#game-container {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    height: 60vh;
+    background: #000;
+    border-radius: 2rem;
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.05);
+}
+canvas { width: 100%; height: 100%; display: block; object-fit: contain; }
+
+.overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 20;
+}
+.overlay.hidden { display: none; }
+.content { text-align: center; max-width: 400px; padding: 2rem; }
+.reward-badge { 
+    display: inline-block; padding: 0.5rem 1.5rem; 
+    background: rgba(245, 158, 11, 0.2); color: #fbbf24;
+    border-radius: 99rem; font-weight: 800; margin-top: 1rem;
+}
+</style>
+
+{% block extra_js %}
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startOverlay = document.getElementById('start-overlay');
+const gameOverOverlay = document.getElementById('game-over');
+const startBtn = document.getElementById('start-btn');
+
+let width = canvas.width;
+let height = canvas.height;
+
+let score = 0, lives = 3, gameActive = false, timeLeft = 60;
+let currentQuestion = null;
+let particles = [];
+let targets = [];
+
+// Physics globals
+let gravity = 0.4;
+let powerMultiplier = 0.2; // scales drag distance to velocity
+let maxPull = 120; // maximum drag distance
+
+// Sling state
+let slingOrigin = { x: 150, y: height - 150 };
+let isDragging = false;
+let dragPos = { x: slingOrigin.x, y: slingOrigin.y };
+
+// Projectile
+let proj = { x: slingOrigin.x, y: slingOrigin.y, vx: 0, vy: 0, radius: 10, active: false };
+
+const questions = [
+    { q: "12 + 13 = ?", a: "25", options: ["24", "25", "26", "23"] },
+    { q: "Capital of India?", a: "Delhi", options: ["Mumbai", "Delhi", "Kolkata", "Chennai"] },
+    { q: "5 x 6 = ?", a: "30", options: ["25", "30", "35", "20"] },
+    { q: "What is H2O?", a: "Water", options: ["Air", "Fire", "Water", "Soil"] },
+    { q: "Largest Planet?", a: "Jupiter", options: ["Earth", "Mars", "Jupiter", "Saturn"] },
+    { q: "Opposite of Cold?", a: "Hot", options: ["Warm", "Cool", "Hot", "Ice"] },
+    { q: "20 / 4 = ?", a: "5", options: ["4", "5", "6", "10"] },
+    { q: "Color of Sun?", a: "Yellow", options: ["Red", "Blue", "Yellow", "Green"] },
+    { q: "8 x 8 = ?", a: "64", options: ["54", "64", "72", "81"] },
+    { q: "What do bees make?", a: "Honey", options: ["Wax", "Honey", "Silk", "Milk"] }
+];
+
+class Target {
+    constructor(x, y, w, h, text, isCorrect) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+        this.text = text;
+        this.isCorrect = isCorrect;
+        this.active = true;
+    }
+    
+    draw() {
+        if (!this.active) return;
+        
+        ctx.fillStyle = '#1e293b';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#06b6d4'; // All targets look the same
+        
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.w, this.h, 8);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        let txt = this.text;
+        ctx.fillText(txt, this.x + this.w/2, this.y + this.h/2);
+        
+        ctx.shadowBlur = 0;
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x; this.y = y;
+        this.vx = (Math.random() - 0.5) * 8;
+        this.vy = (Math.random() - 0.5) * 8;
+        this.life = 1.0;
+        this.color = color;
+    }
+    update() { this.x+=this.vx; this.y+=this.vy; this.life-=0.03; }
+    draw() {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+function createExplosion(x, y, color, count=20) {
+    for (let i = 0; i < count; i++) {
+        particles.push(new Particle(x, y, color));
+    }
+}
+
+function spawnRound() {
+    currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+    document.getElementById('question').textContent = currentQuestion.q;
+    
+    let options = [...currentQuestion.options];
+    options.sort(() => Math.random() - 0.5);
+    
+    targets = [];
+    
+    // Placed scattered on the right side
+    let positions = [
+        { x: 500, y: 150 },
+        { x: 650, y: 250 },
+        { x: 450, y: 350 },
+        { x: 600, y: 450 }
+    ];
+    
+    for(let i=0; i<4; i++){
+        targets.push(new Target(positions[i].x, positions[i].y, 100, 50, options[i], options[i] === currentQuestion.a));
+    }
+    
+    resetProjectile();
+}
+
+function resetProjectile() {
+    proj.x = slingOrigin.x;
+    proj.y = slingOrigin.y;
+    proj.vx = 0;
+    proj.vy = 0;
+    proj.active = false;
+    isDragging = false;
+}
+
+function flashScreen(color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(0,0,width,height);
+}
+
+function crash(reason) {
+    lives--;
+    document.getElementById('life').textContent = lives;
+    flashScreen('rgba(239,68,68,0.5)');
+    
+    if (lives <= 0) {
+        gameOver(reason);
+    } else {
+        setTimeout(() => {
+            if(gameActive) resetProjectile();
+        }, 500);
+    }
+}
+
+function initGame() {
+    score = 0; lives = 3; timeLeft = 60;
+    document.getElementById('score').textContent = score;
+    document.getElementById('life').textContent = lives;
+    gameActive = true;
+    spawnRound();
+    animate();
+    startTimer();
+}
+
+function startTimer() {
+    const t = setInterval(() => {
+        if (!gameActive) { clearInterval(t); return; }
+        timeLeft--;
+        document.getElementById('timer').textContent = `${timeLeft}s`;
+        if (timeLeft <= 0) gameOver("Time Up!");
+    }, 1000);
+}
+
+function gameOver(reason) {
+    gameActive = false;
+    gameOverOverlay.classList.remove('hidden');
+    document.getElementById('over-title').textContent = reason;
+    document.getElementById('final-score').textContent = score;
+    const xp = score * 30;
+    document.getElementById('xp-reward').textContent = `+${xp} XP`;
+    
+    fetch('/api/game/results/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ xp: xp, game: 'knowledge_toss' })
+    });
+}
+
+function drawTrajectory() {
+    if (!isDragging) return;
+    
+    let vx = (slingOrigin.x - dragPos.x) * powerMultiplier;
+    let vy = (slingOrigin.y - dragPos.y) * powerMultiplier;
+    
+    let simX = slingOrigin.x;
+    let simY = slingOrigin.y;
+    
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    for(let i=0; i<30; i++) {
+        simX += vx;
+        vy += gravity;
+        simY += vy;
+        
+        if(i % 3 === 0) {
+            ctx.beginPath();
+            ctx.arc(simX, simY, 3, 0, Math.PI*2);
+            ctx.fill();
+        }
+    }
+}
+
+function animate() {
+    if (!gameActive) return;
+    
+    // Background gradient
+    let grd = ctx.createLinearGradient(0, 0, 0, height);
+    grd.addColorStop(0, "#020617");
+    grd.addColorStop(1, "#0f172a");
+    ctx.fillStyle = grd;
+    ctx.fillRect(0,0,width,height);
+    
+    // Sling base
+    ctx.fillStyle = '#475569';
+    ctx.beginPath(); ctx.roundRect(slingOrigin.x - 10, slingOrigin.y + 10, 20, height - slingOrigin.y, 4); ctx.fill();
+    
+    // Sling bands
+    if (isDragging) {
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(slingOrigin.x - 10, slingOrigin.y + 10); ctx.lineTo(dragPos.x, dragPos.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(slingOrigin.x + 10, slingOrigin.y + 10); ctx.lineTo(dragPos.x, dragPos.y); ctx.stroke();
+    }
+    
+    // Trajectory
+    drawTrajectory();
+    
+    // Targets
+    targets.forEach(t => t.draw());
+    
+    // Projectile physics
+    if (proj.active) {
+        proj.vy += gravity;
+        proj.x += proj.vx;
+        proj.y += proj.vy;
+        
+        // Trail effect
+        createExplosion(proj.x, proj.y, '#fff', 1);
+        
+        // Collision with targets
+        let hitSomething = false;
+        for (let i = 0; i < targets.length; i++) {
+            let t = targets[i];
+            if (!t.active) continue;
+            
+            // AABB vs Circle
+            let testX = proj.x;
+            let testY = proj.y;
+            
+            if (proj.x < t.x) testX = t.x; else if (proj.x > t.x + t.w) testX = t.x + t.w;
+            if (proj.y < t.y) testY = t.y; else if (proj.y > t.y + t.h) testY = t.y + t.h;
+            
+            let distX = proj.x - testX;
+            let distY = proj.y - testY;
+            let distance = Math.sqrt((distX*distX) + (distY*distY));
+            
+            if (distance <= proj.radius) {
+                hitSomething = true;
+                if (t.isCorrect) {
+                    // Correct!
+                    t.active = false;
+                    proj.active = false;
+                    score++;
+                    document.getElementById('score').textContent = score;
+                    createExplosion(t.x + t.w/2, t.y + t.h/2, '#10b981', 50);
+                    flashScreen('rgba(16,185,129,0.3)');
+                    
+                    setTimeout(() => {
+                        if(gameActive) spawnRound();
+                    }, 1000);
+                } else {
+                    // Wrong!
+                    t.active = false;
+                    proj.active = false;
+                    createExplosion(t.x + t.w/2, t.y + t.h/2, '#ef4444', 30);
+                    crash("Hit the wrong answer!");
+                }
+                break;
+            }
+        }
+        
+        // Off screen miss
+        if (!hitSomething && (proj.y > height || proj.x > width + 100)) {
+            proj.active = false;
+            crash("Missed the targets completely!");
+        }
+    }
+    
+    // Draw projectile / aim orb
+    ctx.fillStyle = '#3b82f6';
+    ctx.shadowBlur = 15; ctx.shadowColor = '#3b82f6';
+    let px = isDragging ? dragPos.x : proj.x;
+    let py = isDragging ? dragPos.y : proj.y;
+    
+    // Only draw if not active or active
+    if (!proj.active && !isDragging) { px = slingOrigin.x; py = slingOrigin.y; }
+    
+    ctx.beginPath(); ctx.arc(px, py, proj.radius, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+    
+    // Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i]; p.update(); p.draw();
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+    
+    requestAnimationFrame(animate);
+}
+
+// Controls
+function getMousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    let cx = e.clientX;
+    let cy = e.clientY;
+    
+    if (e.touches && e.touches.length > 0) {
+        cx = e.touches[0].clientX;
+        cy = e.touches[0].clientY;
+    }
+    
+    return {
+        x: (cx - rect.left) * scaleX,
+        y: (cy - rect.top) * scaleY
+    };
+}
+
+function onDown(e) {
+    if (!gameActive || proj.active) return;
+    let pos = getMousePos(e);
+    
+    // If clicked near sling origin
+    let dist = Math.sqrt(Math.pow(pos.x - slingOrigin.x, 2) + Math.pow(pos.y - slingOrigin.y, 2));
+    if (dist < 50) {
+        isDragging = true;
+        dragPos = pos;
+        if(e.type !== 'mousedown') e.preventDefault();
+    }
+}
+
+function onMove(e) {
+    if (!isDragging) return;
+    if(e.type !== 'mousemove') e.preventDefault();
+    let pos = getMousePos(e);
+    
+    let dist = Math.sqrt(Math.pow(pos.x - slingOrigin.x, 2) + Math.pow(pos.y - slingOrigin.y, 2));
+    if (dist > maxPull) {
+        let angle = Math.atan2(pos.y - slingOrigin.y, pos.x - slingOrigin.x);
+        dragPos.x = slingOrigin.x + Math.cos(angle) * maxPull;
+        dragPos.y = slingOrigin.y + Math.sin(angle) * maxPull;
+    } else {
+        dragPos = pos;
+    }
+}
+
+function onUp(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    
+    // Fire
+    proj.x = dragPos.x;
+    proj.y = dragPos.y;
+    proj.vx = (slingOrigin.x - dragPos.x) * powerMultiplier;
+    proj.vy = (slingOrigin.y - dragPos.y) * powerMultiplier;
+    proj.active = true;
+}
+
+canvas.addEventListener('mousedown', onDown);
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('mouseup', onUp);
+canvas.addEventListener('mouseleave', () => { if(isDragging) isDragging = false; });
+
+canvas.addEventListener('touchstart', onDown, {passive: false});
+canvas.addEventListener('touchmove', onMove, {passive: false});
+canvas.addEventListener('touchend', onUp, {passive: false});
+
+startBtn.onclick = () => {
+    startOverlay.classList.add('hidden');
+    initGame();
+};
+</script>
+{% endblock %}
+{% endblock %}

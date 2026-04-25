@@ -147,3 +147,7 @@ cython_debug/
 Thumbs.db
 Desktop.ini
 .DS_Store
+render_service_final*.json
+scratch/
+*.bat
+

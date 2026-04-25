@@ -1,31 +1,160 @@
 {% extends 'main/base.html' %}
 
 {% block content %}
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <div class="dashboard-wrapper">
-    <div class="dashboard-header">
-        <h1 class="hero-title">Teacher <span class="text-gradient">Dashboard</span></h1>
-        <p class="hero-subtitle">Welcome back, {{ request.user.username }}! Your students are waiting for guidance.</p>
+    <div class="dashboard-header mb-4">
+        <h1 class="hero-title">Teacher <span class="text-gradient">Analytics</span></h1>
+        <p class="hero-subtitle">Welcome back, {{ request.user.username }}! Here is your classroom performance overview.</p>
     </div>
 
-    <div class="stats-grid">
+    <!-- Stats Row -->
+    <div class="stats-grid mb-4">
         <div class="stat-card glass glass-glow">
-            <div class="stat-value">0</div>
-            <div class="stat-label">Active Students</div>
+            <div class="stat-value">{{ total_students }}</div>
+            <div class="stat-label">Total Students</div>
         </div>
         <div class="stat-card glass glass-glow">
-            <div class="stat-value">0</div>
-            <div class="stat-label">Course Reports</div>
+            <div class="stat-value">{{ total_quizzes }}</div>
+            <div class="stat-label">Quizzes Completed</div>
         </div>
         <div class="stat-card glass glass-glow">
-            <div class="stat-value">{{ request.user.profile.subject }}</div>
-            <div class="stat-label">Subject Major</div>
+            <div class="stat-value">{{ request.user.profile.subject|default:"General" }}</div>
+            <div class="stat-label">Your Subject Major</div>
         </div>
     </div>
 
-    <div class="mt-4 glass glass-glow" style="padding: 3rem; border-radius: 2rem; margin-top: 2rem; text-align: center;">
-        <h3>Set up your first AI Classroom.</h3>
-        <p class="text-muted">Generate interactive quizzes and roadmaps for your subject.</p>
-        <a href="#" class="btn btn-primary mt-2">Create Classroom</a>
+    <div class="row">
+        <!-- Left Column: Chart & Top Performers -->
+        <div class="col-lg-8">
+            <!-- Chart Card -->
+            <div class="glass glass-glow p-4 mb-4" style="border-radius: 1.5rem;">
+                <h3 class="mb-3" style="color: white; display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-lucide="bar-chart-2"></i> XP Distribution (Top 10)
+                </h3>
+                <div style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="xpChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Top Performers Table -->
+            <div class="glass glass-glow p-4 mb-4" style="border-radius: 1.5rem;">
+                <h3 class="mb-3" style="color: white; display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-lucide="trophy"></i> Top Performers
+                </h3>
+                <div class="table-responsive">
+                    <table class="table table-borderless text-white">
+                        <thead>
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                <th>Rank</th>
+                                <th>Student</th>
+                                <th>Level</th>
+                                <th>Total XP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in top_students %}
+                            <tr>
+                                <td>#{{ forloop.counter }}</td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(45deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem;">
+                                            {{ student.user.username|make_list|first|upper }}
+                                        </div>
+                                        {{ student.user.username }}
+                                    </div>
+                                </td>
+                                <td>{{ student.level }}</td>
+                                <td style="color: var(--secondary); font-weight: bold;">{{ student.xp }} XP</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center text-muted">No student data available yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Activity Feed -->
+        <div class="col-lg-4">
+            <div class="glass glass-glow p-4" style="border-radius: 1.5rem; height: 100%;">
+                <h3 class="mb-4" style="color: white; display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-lucide="activity"></i> Live Activity Feed
+                </h3>
+                
+                <div class="activity-feed" style="display: flex; flex-direction: column; gap: 1rem;">
+                    {% for activity in recent_activity %}
+                    <div class="activity-item" style="padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 1rem; border-left: 4px solid var(--primary);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <strong style="color: white;">{{ activity.user.username }}</strong>
+                            <small class="text-muted">{{ activity.created_at|timesince }} ago</small>
+                        </div>
+                        <p style="margin: 0; font-size: 0.9rem; color: #cbd5e1;">
+                            {{ activity.description }}
+                        </p>
+                        <div class="mt-2" style="display: inline-block; padding: 0.2rem 0.5rem; background: rgba(16, 185, 129, 0.2); color: #10b981; border-radius: 0.5rem; font-size: 0.8rem; font-weight: bold;">
+                            +{{ activity.amount }} XP
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center text-muted p-4">No recent activity.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+    // Initialize Chart.js
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('xpChart').getContext('2d');
+        const labels = JSON.parse('{{ chart_labels|safe }}');
+        const data = JSON.parse('{{ chart_data|safe }}');
+        
+        // Define gradient
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(99, 102, 241, 0.8)');   // Primary
+        gradient.addColorStop(1, 'rgba(236, 72, 153, 0.2)');   // Secondary transparent
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Experience Points (XP)',
+                    data: data,
+                    backgroundColor: gradient,
+                    borderColor: '#6366f1',
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    barPercentage: 0.6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#cbd5e1' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                        ticks: { color: '#cbd5e1' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#cbd5e1' }
+                    }
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}

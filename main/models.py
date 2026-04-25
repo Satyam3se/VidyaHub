@@ -180,6 +180,25 @@ class UserProgress(models.Model):
     def __str__(self):
         return f"{self.user.username} completed {self.chapter_note.chapter.name}"
 
+class ChapterMastery(models.Model):
+    """Tracks student mastery percentage and AI recommendations per chapter."""
+    user = models.ForeignKey(User, related_name='chapter_mastery', on_delete=models.CASCADE)
+    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE)
+    
+    mastery_percentage = models.IntegerField(default=0)  # 0 to 100
+    questions_attempted = models.IntegerField(default=0)
+    questions_correct = models.IntegerField(default=0)
+    
+    # AI Analysis
+    ai_recommendation = models.TextField(blank=True, help_text="Gemini's advice for this chapter")
+    last_analyzed = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'chapter')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.chapter.name} ({self.mastery_percentage}%)"
+
 class SubjectScore(models.Model):
     user = models.ForeignKey(User, related_name='subject_scores', on_delete=models.CASCADE)
     subject = models.ForeignKey(Subject, related_name='leaderboard', on_delete=models.CASCADE)
@@ -333,6 +352,23 @@ class UserChallenge(models.Model):
     
     def __str__(self):
         return f"{self.challenger.username} vs {self.challenged.username}"
+
+class TeacherNoteUpload(models.Model):
+    """Stores PDF uploads from teachers and AI-generated game insights."""
+    teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='uploaded_notes')
+    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='teacher_uploads')
+    pdf_file = models.FileField(upload_to='teacher_notes/')
+    
+    # AI Generated Content (Stored as JSON or Text)
+    game_levels_json = models.JSONField(null=True, blank=True, help_text="5 Game Levels summary")
+    blindspots_json = models.JSONField(null=True, blank=True, help_text="Student difficult spots")
+    quiz_questions_json = models.JSONField(null=True, blank=True, help_text="10 Generated Quiz Questions")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_processed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Note: {self.chapter.name} by {self.teacher.username}"
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):

@@ -1,0 +1,408 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<section class="space-arena">
+    <div class="container">
+        <div class="game-ui glass animate-down">
+            <div class="stats">
+                <div class="stat"><i data-lucide="shield" class="text-primary"></i> <span id="life">3</span></div>
+                <div class="stat"><i data-lucide="zap" class="text-warning"></i> <span id="score">0</span></div>
+            </div>
+            <div class="target-question">
+                <h3 id="question">Loading Question...</h3>
+            </div>
+            <div class="timer-box">
+                <span id="timer">60s</span>
+            </div>
+        </div>
+
+        <div id="game-container">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            
+            <div id="start-overlay" class="overlay glass">
+                <div class="content animate-scale">
+                    <h1>Whack-A-Fact</h1>
+                    <p>Click the CORRECT answer before they all hide! Don't whack the wrong ones!</p>
+                    <button id="start-btn" class="btn btn-primary btn-large mt-4">Get Ready</button>
+                </div>
+            </div>
+
+            <div id="game-over" class="overlay glass hidden">
+                <div class="content animate-scale">
+                    <h1 id="over-title">Game Over</h1>
+                    <p>Final Score: <span id="final-score">0</span></p>
+                    <div id="xp-reward" class="reward-badge">+0 XP</div>
+                    <div class="mt-4">
+                        <button onclick="location.reload()" class="btn btn-primary">Try Again</button>
+                        <a href="{% url 'game_dashboard' %}" class="btn btn-secondary ms-2">Exit</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.space-arena { padding: 7rem 0 2rem; height: 100vh; overflow: hidden; background: #020617; }
+.game-ui { 
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 1rem 2rem; border-radius: 1.5rem; margin-bottom: 1rem;
+    position: relative; z-index: 10;
+}
+.stats { display: flex; gap: 1.5rem; font-size: 1.25rem; font-weight: 800; }
+.stat { display: flex; align-items: center; gap: 0.5rem; }
+.target-question h3 { margin: 0; font-size: 1.4rem; color: #fff; text-shadow: 0 0 10px rgba(99,102,241,0.5); text-align: center; }
+.timer-box { font-family: monospace; font-size: 1.5rem; font-weight: 700; color: #f87171; }
+
+#game-container {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    height: 60vh;
+    background: #0f172a;
+    border-radius: 2rem;
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.05);
+    cursor: crosshair; /* hammer cursor feel */
+}
+canvas { width: 100%; height: 100%; display: block; object-fit: contain; }
+
+.overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 20;
+}
+.overlay.hidden { display: none; }
+.content { text-align: center; max-width: 400px; padding: 2rem; }
+.reward-badge { 
+    display: inline-block; padding: 0.5rem 1.5rem; 
+    background: rgba(245, 158, 11, 0.2); color: #fbbf24;
+    border-radius: 99rem; font-weight: 800; margin-top: 1rem;
+}
+</style>
+
+{% block extra_js %}
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startOverlay = document.getElementById('start-overlay');
+const gameOverOverlay = document.getElementById('game-over');
+const startBtn = document.getElementById('start-btn');
+
+let width = canvas.width;
+let height = canvas.height;
+
+let score = 0, lives = 3, gameActive = false, timeLeft = 60;
+let currentQuestion = null;
+let particles = [];
+let holes = [];
+let moles = [];
+
+// Game Difficulty Settings
+let moleStayTime = 2500; // ms they stay up
+let roundTimer = null;
+let roundActive = false;
+
+const questions = [
+    { q: "12 + 13 = ?", a: "25", options: ["24", "25", "26", "23"] },
+    { q: "Capital of India?", a: "Delhi", options: ["Mumbai", "Delhi", "Kolkata", "Chennai"] },
+    { q: "5 x 6 = ?", a: "30", options: ["25", "30", "35", "20"] },
+    { q: "What is H2O?", a: "Water", options: ["Air", "Fire", "Water", "Soil"] },
+    { q: "Largest Planet?", a: "Jupiter", options: ["Earth", "Mars", "Jupiter", "Saturn"] },
+    { q: "Opposite of Cold?", a: "Hot", options: ["Warm", "Cool", "Hot", "Ice"] },
+    { q: "20 / 4 = ?", a: "5", options: ["4", "5", "6", "10"] },
+    { q: "Color of Sun?", a: "Yellow", options: ["Red", "Blue", "Yellow", "Green"] },
+    { q: "3 squared is?", a: "9", options: ["6", "9", "12", "3"] },
+    { q: "What do cows drink?", a: "Water", options: ["Milk", "Juice", "Water", "Soda"] }
+];
+
+function initHoles() {
+    holes = [];
+    let cols = 3, rows = 3;
+    let paddingX = width / cols;
+    let paddingY = height / rows;
+    for(let r=0; r<rows; r++){
+        for(let c=0; c<cols; c++){
+            holes.push({
+                x: c * paddingX + paddingX/2,
+                y: r * paddingY + paddingY/2 + 20,
+                radiusX: 50,
+                radiusY: 20
+            });
+        }
+    }
+}
+
+class Mole {
+    constructor(holeIndex, text, isCorrect) {
+        this.hole = holes[holeIndex];
+        this.text = text;
+        this.isCorrect = isCorrect;
+        
+        this.w = 80;
+        this.h = 60;
+        
+        this.state = 'up'; // 'up', 'down'
+        this.yOffset = this.h; // starts hidden down
+        this.targetOffset = 0; // target is fully up
+        
+        this.active = true;
+        this.smashed = false;
+    }
+    
+    update() {
+        if (!this.active) return;
+        
+        // simple spring/lerp animation
+        this.yOffset += (this.targetOffset - this.yOffset) * 0.2;
+    }
+    
+    draw() {
+        if (!this.active || this.smashed) return;
+        
+        ctx.save();
+        // Clip to only draw mole above the hole
+        ctx.beginPath();
+        ctx.rect(this.hole.x - this.w, this.hole.y - this.h - 50, this.w*2, this.h + 50);
+        ctx.clip();
+        
+        let drawY = this.hole.y - this.h + this.yOffset;
+        
+        // Mole Body (all look the same)
+        ctx.fillStyle = '#3b82f6';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#3b82f6';
+        ctx.beginPath();
+        ctx.roundRect(this.hole.x - this.w/2, drawY, this.w, this.h, 10);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        
+        // Text
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        let txt = this.text;
+        ctx.fillText(txt, this.hole.x, drawY + this.h/2);
+        
+        ctx.restore();
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x; this.y = y;
+        this.vx = (Math.random() - 0.5) * 8;
+        this.vy = (Math.random() - 0.5) * 8;
+        this.life = 1.0;
+        this.color = color;
+    }
+    update() { this.x+=this.vx; this.y+=this.vy; this.life-=0.05; }
+    draw() {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+function createExplosion(x, y, color, count=20) {
+    for (let i = 0; i < count; i++) {
+        particles.push(new Particle(x, y, color));
+    }
+}
+
+function flashScreen(color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(0,0,width,height);
+}
+
+function spawnRound() {
+    currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+    document.getElementById('question').textContent = currentQuestion.q;
+    
+    let options = [...currentQuestion.options];
+    options.sort(() => Math.random() - 0.5);
+    
+    // Pick 4 distinct random holes
+    let indices = [0,1,2,3,4,5,6,7,8].sort(() => Math.random() - 0.5).slice(0, 4);
+    
+    moles = [];
+    for(let i=0; i<4; i++){
+        moles.push(new Mole(indices[i], options[i], options[i] === currentQuestion.a));
+    }
+    
+    roundActive = true;
+    
+    // Set timer for moles to hide
+    if (roundTimer) clearTimeout(roundTimer);
+    roundTimer = setTimeout(() => {
+        if (roundActive) {
+            // Player missed the round!
+            moles.forEach(m => m.targetOffset = m.h); // tell them to hide
+            setTimeout(() => {
+                crash("Missed the correct answer!");
+            }, 500); // wait for hide animation
+        }
+    }, moleStayTime);
+}
+
+function initGame() {
+    score = 0; lives = 3; timeLeft = 60; moleStayTime = 2500;
+    document.getElementById('score').textContent = score;
+    document.getElementById('life').textContent = lives;
+    gameActive = true;
+    initHoles();
+    spawnRound();
+    animate();
+    startTimer();
+}
+
+function startTimer() {
+    const t = setInterval(() => {
+        if (!gameActive) { clearInterval(t); return; }
+        timeLeft--;
+        document.getElementById('timer').textContent = `${timeLeft}s`;
+        if (timeLeft <= 0) gameOver("Time Up!");
+    }, 1000);
+}
+
+function gameOver(reason) {
+    gameActive = false;
+    if (roundTimer) clearTimeout(roundTimer);
+    gameOverOverlay.classList.remove('hidden');
+    document.getElementById('over-title').textContent = reason;
+    document.getElementById('final-score').textContent = score;
+    const xp = score * 30;
+    document.getElementById('xp-reward').textContent = `+${xp} XP`;
+    
+    fetch('/api/game/results/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ xp: xp, game: 'whack_a_fact' })
+    });
+}
+
+function crash(reason) {
+    roundActive = false;
+    lives--;
+    document.getElementById('life').textContent = lives;
+    flashScreen('rgba(239,68,68,0.5)');
+    
+    if (lives <= 0) {
+        gameOver(reason);
+    } else {
+        setTimeout(() => {
+            if(gameActive) spawnRound();
+        }, 1000);
+    }
+}
+
+function animate() {
+    if (!gameActive) return;
+    
+    // Draw background grass/dirt
+    ctx.fillStyle = '#064e3b'; // dark green
+    ctx.fillRect(0,0,width,height);
+    
+    // Draw holes
+    holes.forEach(h => {
+        ctx.fillStyle = '#022c22'; // darker hole
+        ctx.beginPath();
+        ctx.ellipse(h.x, h.y, h.radiusX, h.radiusY, 0, 0, Math.PI*2);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#065f46';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+    });
+    
+    // Draw Moles
+    moles.forEach(m => {
+        m.update();
+        m.draw();
+    });
+    
+    // Draw Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i]; p.update(); p.draw();
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+    
+    requestAnimationFrame(animate);
+}
+
+function handleWhack(clientX, clientY) {
+    if (!gameActive || !roundActive) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    let mx = (clientX - rect.left) * scaleX;
+    let my = (clientY - rect.top) * scaleY;
+    
+    // Check collisions in reverse so top layer hit first
+    for (let i = moles.length - 1; i >= 0; i--) {
+        let m = moles[i];
+        if (!m.active || m.smashed || m.yOffset > m.h * 0.8) continue; // too hidden
+        
+        let drawY = m.hole.y - m.h + m.yOffset;
+        // Simple bounding box for mole
+        if (mx > m.hole.x - m.w/2 && mx < m.hole.x + m.w/2 &&
+            my > drawY && my < drawY + m.h) {
+            
+            // Hit!
+            if (m.isCorrect) {
+                // Correct
+                m.smashed = true;
+                roundActive = false;
+                if(roundTimer) clearTimeout(roundTimer);
+                
+                score++;
+                document.getElementById('score').textContent = score;
+                moleStayTime = Math.max(1000, moleStayTime - 100); // speed up
+                
+                createExplosion(m.hole.x, drawY + m.h/2, '#10b981', 40);
+                flashScreen('rgba(16,185,129,0.3)');
+                
+                // hide others
+                moles.forEach(om => om.targetOffset = om.h);
+                
+                setTimeout(() => {
+                    if(gameActive) spawnRound();
+                }, 800);
+                
+            } else {
+                // Wrong!
+                m.smashed = true;
+                if(roundTimer) clearTimeout(roundTimer);
+                createExplosion(m.hole.x, drawY + m.h/2, '#ef4444', 30);
+                crash("Whacked the wrong answer!");
+            }
+            break; // only hit one
+        }
+    }
+    
+    // Whack effect even if missed
+    createExplosion(mx, my, '#fff', 5);
+}
+
+// Controls
+canvas.addEventListener('mousedown', (e) => handleWhack(e.clientX, e.clientY));
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    handleWhack(e.touches[0].clientX, e.touches[0].clientY);
+}, {passive: false});
+
+startBtn.onclick = () => {
+    startOverlay.classList.add('hidden');
+    initGame();
+};
+</script>
+{% endblock %}
+{% endblock %}

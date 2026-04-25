@@ -1,0 +1,447 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<section class="space-arena">
+    <div class="container">
+        <div class="game-ui glass animate-down">
+            <div class="stats">
+                <div class="stat"><i data-lucide="shield" class="text-primary"></i> <span id="life">3</span></div>
+                <div class="stat"><i data-lucide="zap" class="text-warning"></i> <span id="score">0</span></div>
+            </div>
+            <div class="target-question">
+                <h3 id="question">Loading Question...</h3>
+            </div>
+            <div class="timer-box">
+                <span id="timer">60s</span>
+            </div>
+        </div>
+
+        <div id="game-container">
+            <canvas id="gameCanvas"></canvas>
+            
+            <div id="start-overlay" class="overlay glass">
+                <div class="content animate-scale">
+                    <h1>Astro Jump</h1>
+                    <p>Use LEFT/RIGHT arrows (or tap sides of screen) to steer. Bounce on the CORRECT answer!</p>
+                    <button id="start-btn" class="btn btn-primary btn-large mt-4">Liftoff!</button>
+                </div>
+            </div>
+
+            <div id="game-over" class="overlay glass hidden">
+                <div class="content animate-scale">
+                    <h1 id="over-title">Game Over</h1>
+                    <p>Final Score: <span id="final-score">0</span></p>
+                    <div id="xp-reward" class="reward-badge">+0 XP</div>
+                    <div class="mt-4">
+                        <button onclick="location.reload()" class="btn btn-primary">Try Again</button>
+                        <a href="{% url 'game_dashboard' %}" class="btn btn-secondary ms-2">Exit</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.space-arena { padding: 7rem 0 2rem; height: 100vh; overflow: hidden; background: #020617; }
+.game-ui { 
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 1rem 2rem; border-radius: 1.5rem; margin-bottom: 1rem;
+    position: relative; z-index: 10;
+}
+.stats { display: flex; gap: 1.5rem; font-size: 1.25rem; font-weight: 800; }
+.stat { display: flex; align-items: center; gap: 0.5rem; }
+.target-question h3 { margin: 0; font-size: 1.4rem; color: #fff; text-shadow: 0 0 10px rgba(99,102,241,0.5); text-align: center; }
+.timer-box { font-family: monospace; font-size: 1.5rem; font-weight: 700; color: #f87171; }
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 15rem);
+    background: #000;
+    border-radius: 2rem;
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.05);
+}
+canvas { width: 100%; height: 100%; display: block; }
+
+.overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 20;
+}
+.overlay.hidden { display: none; }
+.content { text-align: center; max-width: 400px; padding: 2rem; }
+.reward-badge { 
+    display: inline-block; padding: 0.5rem 1.5rem; 
+    background: rgba(245, 158, 11, 0.2); color: #fbbf24;
+    border-radius: 99rem; font-weight: 800; margin-top: 1rem;
+}
+</style>
+
+{% block extra_js %}
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startOverlay = document.getElementById('start-overlay');
+const gameOverOverlay = document.getElementById('game-over');
+const startBtn = document.getElementById('start-btn');
+
+let width, height;
+let player;
+let platforms = [];
+let particles = [];
+let score = 0, lives = 3, gameActive = false, timeLeft = 60;
+let cameraY = 0;
+let gravity = 0.4;
+let jumpForce = -16; // Increased jump force so player can reach platforms
+let keys = { left: false, right: false };
+let currentQuestion = null;
+let basePlatform = null;
+
+const questions = [
+    { q: "12 + 13 = ?", a: "25", options: ["24", "25", "26", "23"] },
+    { q: "Capital of India?", a: "Delhi", options: ["Mumbai", "Delhi", "Kolkata", "Chennai"] },
+    { q: "5 x 6 = ?", a: "30", options: ["25", "30", "35", "20"] },
+    { q: "What is H2O?", a: "Water", options: ["Air", "Fire", "Water", "Soil"] },
+    { q: "Largest Planet?", a: "Jupiter", options: ["Earth", "Mars", "Jupiter", "Saturn"] },
+    { q: "Opposite of Cold?", a: "Hot", options: ["Warm", "Cool", "Hot", "Ice"] },
+    { q: "20 / 4 = ?", a: "5", options: ["4", "5", "6", "10"] },
+    { q: "Color of Sun?", a: "Yellow", options: ["Red", "Blue", "Yellow", "Green"] },
+    { q: "How many planets in our solar system?", a: "8", options: ["7", "8", "9", "10"] },
+    { q: "What gas do plants absorb?", a: "CO2", options: ["O2", "CO2", "N2", "H2"] }
+];
+
+function resize() {
+    width = canvas.width = canvas.parentElement.clientWidth;
+    height = canvas.height = canvas.parentElement.clientHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+class Player {
+    constructor() {
+        this.size = 30;
+        this.x = width / 2;
+        this.y = height - 100;
+        this.vy = 0;
+        this.vx = 0;
+        this.speed = 6;
+    }
+    
+    update() {
+        if (keys.left) this.vx = -this.speed;
+        else if (keys.right) this.vx = this.speed;
+        else this.vx *= 0.8; // friction
+        
+        this.x += this.vx;
+        this.vy += gravity;
+        this.y += this.vy;
+        
+        // Wrap around screen
+        if (this.x < -this.size) this.x = width;
+        if (this.x > width + this.size) this.x = 0;
+    }
+    
+    draw() {
+        ctx.fillStyle = '#10b981'; // Green astronaut
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#10b981';
+        
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size/2, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Visor
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(this.x + (this.vx > 0 ? 5 : (this.vx < 0 ? -5 : 0)), this.y - 3, this.size/4, 0, Math.PI*2);
+        ctx.fill();
+        
+        ctx.shadowBlur = 0;
+    }
+}
+
+class Platform {
+    constructor(x, y, width, text, isCorrect, isBase = false) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = 25;
+        this.text = text;
+        this.isCorrect = isCorrect;
+        this.isBase = isBase;
+        this.broken = false;
+        this.fallVy = 0;
+    }
+    
+    draw() {
+        if (this.y > height + 100) return; // Don't draw if far below screen
+        
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        
+        if (this.broken) {
+            this.fallVy += gravity;
+            this.y += this.fallVy;
+            ctx.globalAlpha = 0.5;
+        }
+        
+        ctx.fillStyle = this.isBase ? '#475569' : '#1e293b';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = this.isBase ? '#64748b' : '#3b82f6'; // All answer platforms glow blue
+        
+        ctx.beginPath();
+        ctx.roundRect(-this.width/2, -this.height/2, this.width, this.height, 5);
+        ctx.fill();
+        
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        if (!this.isBase) {
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this.text, 0, 0);
+        }
+        
+        ctx.restore();
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x; this.y = y;
+        this.vx = (Math.random() - 0.5) * 6;
+        this.vy = (Math.random() - 0.5) * 6;
+        this.life = 1.0;
+        this.color = color;
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= 0.05;
+    }
+    draw() {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 3, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+function createExplosion(x, y, color) {
+    for (let i = 0; i < 20; i++) {
+        particles.push(new Particle(x, y, color));
+    }
+}
+
+function spawnQuestionRow(yPos) {
+    currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+    document.getElementById('question').textContent = currentQuestion.q;
+    
+    let options = [...currentQuestion.options];
+    options.sort(() => Math.random() - 0.5);
+    
+    const pWidth = width / 4 - 20;
+    for (let i = 0; i < 4; i++) {
+        const pX = (i * width/4) + (width/8);
+        platforms.push(new Platform(pX, yPos, pWidth, options[i], options[i] === currentQuestion.a));
+    }
+}
+
+function resetLevel() {
+    player = new Player();
+    platforms = [];
+    particles = [];
+    cameraY = 0;
+    
+    // Spawn base platform
+    basePlatform = new Platform(width/2, height - 20, width, "", false, true);
+    platforms.push(basePlatform);
+    
+    // Spawn first question row
+    spawnQuestionRow(height - 250);
+}
+
+function initGame() {
+    score = 0; lives = 3; timeLeft = 60;
+    document.getElementById('score').textContent = score;
+    document.getElementById('life').textContent = lives;
+    gameActive = true;
+    resetLevel();
+    animate();
+    startTimer();
+}
+
+function startTimer() {
+    const t = setInterval(() => {
+        if (!gameActive) { clearInterval(t); return; }
+        timeLeft--;
+        document.getElementById('timer').textContent = `${timeLeft}s`;
+        if (timeLeft <= 0) gameOver("Time Up!");
+    }, 1000);
+}
+
+function gameOver(reason) {
+    gameActive = false;
+    gameOverOverlay.classList.remove('hidden');
+    document.getElementById('over-title').textContent = reason;
+    document.getElementById('final-score').textContent = score;
+    const xp = score * 30;
+    document.getElementById('xp-reward').textContent = `+${xp} XP`;
+    
+    fetch('/api/game/results/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ xp: xp, game: 'astro_jump' })
+    });
+}
+
+function animate() {
+    if (!gameActive) return;
+    
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0,0,width,height);
+    
+    // Camera Logic
+    if (player.y < height / 2) {
+        let diff = height / 2 - player.y;
+        player.y += diff;
+        platforms.forEach(p => p.y += diff);
+    }
+    
+    // Draw stars effect
+    ctx.fillStyle = '#fff';
+    for(let i=0; i<20; i++){
+        let sy = (Date.now() / 10 + i * 50) % height;
+        let sx = (Math.sin(i) * 5000) % width;
+        if(sx < 0) sx += width;
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath(); ctx.arc(sx, sy, 1, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1.0;
+    
+    player.update();
+    
+    // Collision Detection
+    if (player.vy > 0) { // Only check if falling
+        platforms.forEach(p => {
+            if (!p.broken && 
+                player.x > p.x - p.width/2 - player.size/2 && 
+                player.x < p.x + p.width/2 + player.size/2 &&
+                player.y + player.size/2 > p.y - p.height/2 &&
+                player.y + player.size/2 < p.y + p.height/2) {
+                
+                if (p.isBase) {
+                    player.vy = jumpForce;
+                } else if (p.isCorrect) {
+                    // Correct! Big jump!
+                    player.vy = jumpForce * 1.3;
+                    score++;
+                    document.getElementById('score').textContent = score;
+                    createExplosion(p.x, p.y, '#10b981');
+                    ctx.fillStyle = 'rgba(16, 185, 129, 0.3)';
+                    ctx.fillRect(0,0,width,height);
+                    
+                    // Break other platforms in this row
+                    platforms.forEach(op => {
+                        if (op.y === p.y && op !== p && !op.isBase) op.broken = true;
+                    });
+                    
+                    // Spawn next question higher up
+                    spawnQuestionRow(p.y - 300);
+                    
+                } else {
+                    // Wrong! Break platform and lose life
+                    p.broken = true;
+                    lives--;
+                    document.getElementById('life').textContent = lives;
+                    createExplosion(p.x, p.y, '#ef4444');
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+                    ctx.fillRect(0,0,width,height);
+                    
+                    if (lives <= 0) gameOver("You fell into the abyss!");
+                }
+            }
+        });
+    }
+    
+    // Remove old platforms
+    platforms = platforms.filter(p => p.y < height + 200);
+    
+    // If player falls off screen (missed all platforms)
+    if (player.y > height + 100) {
+        lives--;
+        document.getElementById('life').textContent = lives;
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+        ctx.fillRect(0,0,width,height);
+        
+        if (lives <= 0) {
+            gameOver("You fell into the abyss!");
+        } else {
+            // Respawn
+            resetLevel();
+        }
+    }
+    
+    platforms.forEach(p => p.draw());
+    
+    // Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.update(); p.draw();
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+    
+    player.draw();
+    
+    requestAnimationFrame(animate);
+}
+
+// Controls
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') keys.left = true;
+    if (e.key === 'ArrowRight') keys.right = true;
+});
+document.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowLeft') keys.left = false;
+    if (e.key === 'ArrowRight') keys.right = false;
+});
+
+// Touch controls
+canvas.addEventListener('touchstart', (e) => {
+    const x = e.touches[0].clientX;
+    if (x < window.innerWidth / 2) keys.left = true;
+    else keys.right = true;
+}, {passive: true});
+
+canvas.addEventListener('touchend', (e) => {
+    keys.left = false;
+    keys.right = false;
+});
+
+canvas.addEventListener('mousedown', (e) => {
+    const x = e.clientX;
+    if (x < window.innerWidth / 2) keys.left = true;
+    else keys.right = true;
+});
+canvas.addEventListener('mouseup', () => {
+    keys.left = false;
+    keys.right = false;
+});
+
+startBtn.onclick = () => {
+    startOverlay.classList.add('hidden');
+    initGame();
+};
+</script>
+{% endblock %}
+{% endblock %}

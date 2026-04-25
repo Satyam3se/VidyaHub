@@ -11,7 +11,14 @@ from main.utils import update_user_score
 from django.contrib.auth.models import User
 
 # Create a Socket.IO server with eventlet for async
-sio = socketio.Server(async_mode='eventlet', cors_allowed_origins='*')
+sio = socketio.Server(
+    async_mode='eventlet',
+    cors_allowed_origins='*',
+    cors_credentials=True,
+    transports=['polling', 'websocket'],
+    ping_timeout=60,
+    ping_interval=25
+)
 
 # Matchmaking queue: {queue_key: [ {sid, user_id, username, grade, target_exam} ]}
 # queue_key = f"{grade}_{target_exam}" or "global" for no specific group
@@ -45,12 +52,12 @@ def get_queue_key(grade, target_exam, subject_id):
 
 @sio.event
 def connect(sid, environ):
-    print(f"✅ User connected: {sid}")
+    print(f"User connected: {sid}")
     user_sessions[sid] = {'user_id': None, 'subject_id': None, 'username': None, 'grade': None, 'target_exam': None}
 
 @sio.event
 def disconnect(sid):
-    print(f"❌ User disconnected: {sid}")
+    print(f"User disconnected: {sid}")
     
     # Get user info before removing
     session = user_sessions.get(sid, {})

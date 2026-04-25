@@ -245,3 +245,61 @@ def get_achievement_progress(profile):
         })
     
     return progress
+
+# ============ MASTERY & AI ADVICE ============
+
+def update_chapter_mastery(user, chapter_id, correct_count, total_count):
+    """Update student's mastery for a chapter based on quiz results."""
+    from .models import ChapterMastery, Chapter
+    chapter = Chapter.objects.get(id=chapter_id)
+    
+    mastery, created = ChapterMastery.objects.get_or_create(user=user, chapter=chapter)
+    
+    mastery.questions_attempted += total_count
+    mastery.questions_correct += correct_count
+    
+    # Calculate mastery percentage (weighted toward recent performance could be better, but simple average for now)
+    mastery.mastery_percentage = int((mastery.questions_correct / mastery.questions_attempted) * 100)
+    mastery.save()
+    
+    return mastery
+
+def generate_mastery_ai_advice(user, chapter_id):
+    """Use Gemini to analyze mastery and provide student-specific advice."""
+    from .models import ChapterMastery, MCQQuestion
+    import google.generativeai as genai
+    from django.conf import settings
+    
+    mastery = ChapterMastery.objects.get(user=user, chapter_id=chapter_id)
+    chapter = mastery.chapter
+    
+    # Get some context about what they got wrong if possible
+    # For now, we'll use the stats
+    
+    prompt = f"""
+    Student: {user.username}
+    Subject: {chapter.subject.name}
+    Chapter: {chapter.name}
+    Mastery Level: {mastery.mastery_percentage}%
+    Questions Attempted: {mastery.questions_attempted}
+    Questions Correct: {mastery.questions_correct}
+    
+    Provide a 'Coach Advice' (max 60 words). 
+    - If mastery is < 50%: Be encouraging but firm on basics.
+    - If mastery is 50-80%: Focus on tricky concepts and practice.
+    - If mastery is > 80%: Challenge them to reach 100% or help others.
+    - Use a friendly, expert tutor tone.
+    """
+    
+    try:
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        advice = response.text.strip()
+        
+        mastery.ai_recommendation = advice
+        mastery.save()
+        return advice
+    except Exception as e:
+        print(f"AI Advice Error: {e}")
+        return "Keep practicing! Every question makes you stronger."

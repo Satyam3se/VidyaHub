@@ -1,0 +1,454 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<section class="space-arena">
+    <div class="container">
+        <div class="game-ui glass animate-down">
+            <div class="stats">
+                <div class="stat"><i data-lucide="shield" class="text-primary"></i> <span id="life">3</span></div>
+                <div class="stat"><i data-lucide="zap" class="text-warning"></i> <span id="score">0</span></div>
+            </div>
+            <div class="target-question">
+                <h3 id="question">Loading Question...</h3>
+            </div>
+            <div class="timer-box">
+                <span id="timer">60s</span>
+            </div>
+        </div>
+
+        <div id="game-container">
+            <canvas id="gameCanvas"></canvas>
+            
+            <div id="start-overlay" class="overlay glass">
+                <div class="content animate-scale">
+                    <h1>Knowledge Ninja</h1>
+                    <p>Click and drag (or swipe) to SLASH the correct answer in half!</p>
+                    <button id="start-btn" class="btn btn-primary btn-large mt-4">Draw Sword</button>
+                </div>
+            </div>
+
+            <div id="game-over" class="overlay glass hidden">
+                <div class="content animate-scale">
+                    <h1 id="over-title">Game Over</h1>
+                    <p>Final Score: <span id="final-score">0</span></p>
+                    <div id="xp-reward" class="reward-badge">+0 XP</div>
+                    <div class="mt-4">
+                        <button onclick="location.reload()" class="btn btn-primary">Try Again</button>
+                        <a href="{% url 'game_dashboard' %}" class="btn btn-secondary ms-2">Exit</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.space-arena { padding: 7rem 0 2rem; height: 100vh; overflow: hidden; background: #020617; }
+.game-ui { 
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 1rem 2rem; border-radius: 1.5rem; margin-bottom: 1rem;
+    position: relative; z-index: 10;
+}
+.stats { display: flex; gap: 1.5rem; font-size: 1.25rem; font-weight: 800; }
+.stat { display: flex; align-items: center; gap: 0.5rem; }
+.target-question h3 { margin: 0; font-size: 1.4rem; color: #fff; text-shadow: 0 0 10px rgba(99,102,241,0.5); text-align: center; }
+.timer-box { font-family: monospace; font-size: 1.5rem; font-weight: 700; color: #f87171; }
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 15rem);
+    background: #000;
+    border-radius: 2rem;
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.05);
+    cursor: crosshair; /* Ninja sword cursor */
+}
+canvas { width: 100%; height: 100%; display: block; }
+
+.overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 20;
+}
+.overlay.hidden { display: none; }
+.content { text-align: center; max-width: 400px; padding: 2rem; }
+.reward-badge { 
+    display: inline-block; padding: 0.5rem 1.5rem; 
+    background: rgba(245, 158, 11, 0.2); color: #fbbf24;
+    border-radius: 99rem; font-weight: 800; margin-top: 1rem;
+}
+</style>
+
+{% block extra_js %}
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startOverlay = document.getElementById('start-overlay');
+const gameOverOverlay = document.getElementById('game-over');
+const startBtn = document.getElementById('start-btn');
+
+let width, height;
+let blocks = [];
+let particles = [];
+let mouseTrail = [];
+let score = 0, lives = 3, gameActive = false, timeLeft = 60;
+let isMouseDown = false;
+let currentQuestion = null;
+let spawnTimer = 0;
+let gravity = 0.25;
+
+const questions = [
+    { q: "12 + 13 = ?", a: "25", options: ["24", "25", "26", "23"] },
+    { q: "Capital of India?", a: "Delhi", options: ["Mumbai", "Delhi", "Kolkata", "Chennai"] },
+    { q: "5 x 6 = ?", a: "30", options: ["25", "30", "35", "20"] },
+    { q: "What is H2O?", a: "Water", options: ["Air", "Fire", "Water", "Soil"] },
+    { q: "Largest Planet?", a: "Jupiter", options: ["Earth", "Mars", "Jupiter", "Saturn"] },
+    { q: "Opposite of Cold?", a: "Hot", options: ["Warm", "Cool", "Hot", "Ice"] },
+    { q: "20 / 4 = ?", a: "5", options: ["4", "5", "6", "10"] },
+    { q: "Color of Sun?", a: "Yellow", options: ["Red", "Blue", "Yellow", "Green"] },
+    { q: "How many legs does a spider have?", a: "8", options: ["6", "8", "10", "12"] },
+    { q: "What do bees make?", a: "Honey", options: ["Wax", "Honey", "Silk", "Milk"] }
+];
+
+function resize() {
+    width = canvas.width = canvas.parentElement.clientWidth;
+    height = canvas.height = canvas.parentElement.clientHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+class Block {
+    constructor(text, isCorrect) {
+        this.width = 120;
+        this.height = 50;
+        this.x = Math.random() * (width - this.width*2) + this.width;
+        this.y = height + 50;
+        
+        // Arc physics
+        this.vx = (Math.random() - 0.5) * 4;
+        this.vy = -(12 + Math.random() * 4); // Jump up
+        
+        this.rotation = Math.random() * Math.PI;
+        this.vRot = (Math.random() - 0.5) * 0.1;
+        
+        this.text = text;
+        this.isCorrect = isCorrect;
+        this.active = true;
+        this.slashed = false;
+        
+        // Halves physics for when slashed
+        this.half1 = null;
+        this.half2 = null;
+    }
+    
+    update() {
+        if (!this.slashed) {
+            this.vy += gravity;
+            this.x += this.vx;
+            this.y += this.vy;
+            this.rotation += this.vRot;
+            
+            // Wall bounce
+            if (this.x < 0 || this.x > width - this.width) {
+                this.vx *= -1;
+            }
+        } else {
+            // Update halves
+            this.half1.vy += gravity;
+            this.half1.x += this.half1.vx;
+            this.half1.y += this.half1.vy;
+            this.half1.rotation += this.half1.vRot;
+            
+            this.half2.vy += gravity;
+            this.half2.x += this.half2.vx;
+            this.half2.y += this.half2.vy;
+            this.half2.rotation += this.half2.vRot;
+            
+            if (this.half1.y > height + 100) this.active = false;
+        }
+    }
+    
+    slash() {
+        this.slashed = true;
+        // Create two halves
+        this.half1 = { x: this.x, y: this.y, vx: this.vx - 3, vy: this.vy - 2, rotation: this.rotation, vRot: this.vRot - 0.1 };
+        this.half2 = { x: this.x, y: this.y, vx: this.vx + 3, vy: this.vy - 2, rotation: this.rotation, vRot: this.vRot + 0.1 };
+    }
+    
+    draw() {
+        if (!this.slashed) {
+            ctx.save();
+            ctx.translate(this.x + this.width/2, this.y + this.height/2);
+            ctx.rotate(this.rotation);
+            
+            // All look the same to hide answer
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#d946ef';
+            ctx.fillStyle = '#1e293b';
+            
+            ctx.beginPath();
+            ctx.roundRect(-this.width/2, -this.height/2, this.width, this.height, 8);
+            ctx.fill();
+            
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this.text, 0, 0);
+            
+            ctx.restore();
+        } else {
+            // Draw half 1 (Left)
+            ctx.save();
+            ctx.translate(this.half1.x + this.width/2, this.half1.y + this.height/2);
+            ctx.rotate(this.half1.rotation);
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.moveTo(-this.width/2, -this.height/2);
+            ctx.lineTo(0, -this.height/2 + 10);
+            ctx.lineTo(0, this.height/2 - 10);
+            ctx.lineTo(-this.width/2, this.height/2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#d946ef'; ctx.stroke();
+            ctx.restore();
+            
+            // Draw half 2 (Right)
+            ctx.save();
+            ctx.translate(this.half2.x + this.width/2, this.half2.y + this.height/2);
+            ctx.rotate(this.half2.rotation);
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.moveTo(0, -this.height/2 + 10);
+            ctx.lineTo(this.width/2, -this.height/2);
+            ctx.lineTo(this.width/2, this.height/2);
+            ctx.lineTo(0, this.height/2 - 10);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#d946ef'; ctx.stroke();
+            ctx.restore();
+        }
+    }
+    
+    checkSlash(mx, my) {
+        if (this.slashed) return false;
+        // Simple bounding box check around center
+        const dx = mx - (this.x + this.width/2);
+        const dy = my - (this.y + this.height/2);
+        return (Math.abs(dx) < this.width/2 + 10 && Math.abs(dy) < this.height/2 + 10);
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x; this.y = y;
+        this.vx = (Math.random() - 0.5) * 8;
+        this.vy = (Math.random() - 0.5) * 8;
+        this.life = 1.0;
+        this.color = color;
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= 0.03;
+    }
+    draw() {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 3 + Math.random()*3, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+function createExplosion(x, y, color) {
+    for (let i = 0; i < 30; i++) {
+        particles.push(new Particle(x, y, color));
+    }
+}
+
+function nextQuestion() {
+    currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+    document.getElementById('question').textContent = currentQuestion.q;
+    blocks = [];
+    currentQuestion.options.forEach(opt => {
+        // Toss them with slight delays or together
+        blocks.push(new Block(opt, opt === currentQuestion.a));
+    });
+}
+
+function initGame() {
+    blocks = [];
+    particles = [];
+    mouseTrail = [];
+    score = 0; lives = 3; timeLeft = 60;
+    document.getElementById('score').textContent = score;
+    document.getElementById('life').textContent = lives;
+    gameActive = true;
+    nextQuestion();
+    animate();
+    startTimer();
+}
+
+function startTimer() {
+    const t = setInterval(() => {
+        if (!gameActive) { clearInterval(t); return; }
+        timeLeft--;
+        document.getElementById('timer').textContent = `${timeLeft}s`;
+        if (timeLeft <= 0) gameOver("Time Up!");
+    }, 1000);
+}
+
+function gameOver(reason) {
+    gameActive = false;
+    gameOverOverlay.classList.remove('hidden');
+    document.getElementById('over-title').textContent = reason;
+    document.getElementById('final-score').textContent = score;
+    const xp = score * 30;
+    document.getElementById('xp-reward').textContent = `+${xp} XP`;
+    
+    fetch('/api/game/results/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ xp: xp, game: 'knowledge_ninja' })
+    });
+}
+
+function drawTrail() {
+    if (mouseTrail.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(mouseTrail[0].x, mouseTrail[0].y);
+    for (let i = 1; i < mouseTrail.length; i++) {
+        ctx.lineTo(mouseTrail[i].x, mouseTrail[i].y);
+    }
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    
+    // Outer glow
+    ctx.strokeStyle = 'rgba(14, 165, 233, 0.4)';
+    ctx.lineWidth = 10;
+    ctx.stroke();
+}
+
+function animate() {
+    if (!gameActive) return;
+    
+    // Clear canvas
+    ctx.clearRect(0,0,width,height);
+    
+    // Draw particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.update();
+        p.draw();
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+    
+    let allFell = true;
+    let correctAnswerSlashed = false;
+    
+    blocks.forEach((b) => {
+        if (!b.active) return;
+        b.update();
+        b.draw();
+        
+        if (b.y < height + 100) allFell = false;
+        if (b.isCorrect && b.slashed) correctAnswerSlashed = true;
+        
+        // Handle missed correct block
+        if (b.isCorrect && !b.slashed && b.y > height && b.vy > 0) {
+            b.active = false;
+            lives--;
+            document.getElementById('life').textContent = lives;
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+            ctx.fillRect(0,0,width,height);
+            if (lives <= 0) gameOver("Missed the correct answer!");
+        }
+    });
+    
+    if (allFell) {
+        if (!correctAnswerSlashed) {
+            // Player didn't slash the correct one and it fell
+        }
+        nextQuestion();
+    }
+    
+    drawTrail();
+    
+    // Shrink trail
+    if (mouseTrail.length > 0) {
+        mouseTrail.shift();
+    }
+    
+    requestAnimationFrame(animate);
+}
+
+function handleSlash(x, y) {
+    if (!gameActive) return;
+    mouseTrail.push({x, y});
+    if (mouseTrail.length > 10) mouseTrail.shift();
+    
+    blocks.forEach(b => {
+        if (!b.slashed && b.checkSlash(x, y)) {
+            b.slash();
+            if (b.isCorrect) {
+                score++;
+                document.getElementById('score').textContent = score;
+                createExplosion(b.x + b.width/2, b.y + b.height/2, '#10b981');
+                
+                // Explode all wrong answers instantly
+                blocks.forEach(wb => {
+                    if (!wb.isCorrect && !wb.slashed) wb.slash();
+                });
+                
+            } else {
+                lives--;
+                document.getElementById('life').textContent = lives;
+                createExplosion(b.x + b.width/2, b.y + b.height/2, '#ef4444');
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.3)'; // Red flash
+                ctx.fillRect(0,0,width,height);
+                if (lives <= 0) gameOver("Slashed the wrong answer!");
+            }
+        }
+    });
+}
+
+// Controls
+canvas.addEventListener('mousedown', (e) => { isMouseDown = true; });
+canvas.addEventListener('mouseup', () => { isMouseDown = false; mouseTrail = []; });
+canvas.addEventListener('mousemove', (e) => {
+    if (isMouseDown) {
+        const rect = canvas.getBoundingClientRect();
+        handleSlash(e.clientX - rect.left, e.clientY - rect.top);
+    }
+});
+
+canvas.addEventListener('touchstart', (e) => { isMouseDown = true; }, {passive: true});
+canvas.addEventListener('touchend', () => { isMouseDown = false; mouseTrail = []; });
+canvas.addEventListener('touchmove', (e) => {
+    if (isMouseDown) {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        handleSlash(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
+    }
+}, {passive: false});
+
+startBtn.onclick = () => {
+    startOverlay.classList.add('hidden');
+    initGame();
+};
+</script>
+{% endblock %}
+{% endblock %}

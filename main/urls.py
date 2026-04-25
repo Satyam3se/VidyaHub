@@ -25,6 +25,15 @@ urlpatterns = [
     path('games/memory-match/', views.memory_match, name='memory_match'),
     path('games/word-scramble/', views.word_scramble, name='word_scramble'),
     path('games/space-defender/', views.space_defender, name='space_defender'),
+    path('games/gravity-drop/', views.gravity_drop, name='gravity_drop'),
+    path('games/quiz-dash/', views.quiz_dash, name='quiz_dash'),
+    path('games/knowledge-ninja/', views.knowledge_ninja, name='knowledge_ninja'),
+    path('games/astro-jump/', views.astro_jump, name='astro_jump'),
+    path('games/scholar-snake/', views.scholar_snake, name='scholar_snake'),
+    path('games/hover-dash/', views.hover_dash, name='hover_dash'),
+    path('games/brain-breaker/', views.brain_breaker, name='brain_breaker'),
+    path('games/whack-a-fact/', views.whack_a_fact, name='whack_a_fact'),
+    path('games/knowledge-toss/', views.knowledge_toss, name='knowledge_toss'),
     path('games/math-duel/', views.math_duel, name='math_duel'),
     path('games/spelling-bee/', views.spelling_bee, name='spelling_bee'),
     path('games/science-lab/', views.science_lab, name='science_lab'),
@@ -67,4 +76,11 @@ urlpatterns = [
     path('leaderboard/', views.leaderboard_view, name='leaderboard'),
     path('profile/', views.profile_view, name='profile'),
     path('api/profile/avatar/', views.update_avatar, name='update_avatar'),
+    
+    # Teacher PDF Features
+    path('teacher/upload-note/', views.upload_teacher_note, name='upload_teacher_note'),
+    path('teacher/note-analysis/<int:upload_id>/', views.view_note_analysis, name='view_note_analysis'),
+    
+    # Student AI Mastery
+    path('dashboard/mastery/', views.mastery_dashboard, name='mastery_dashboard'),
 ]

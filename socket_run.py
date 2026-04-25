@@ -15,7 +15,7 @@ from vidyahub.socket_server import sio
 
 if __name__ == '__main__':
     port = 8001
-    print(f'⚔️ VidyaHub Battle Server starting on port {port}')
+    print(f'VidyaHub Battle Server starting on port {port}')
     print('=' * 50)
     print('Battle Server Commands:')
     print('  - Join battle: emit "join_battle" with subject_id, user_id')

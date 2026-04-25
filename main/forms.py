@@ -57,3 +57,14 @@ class UserLoginForm(AuthenticationForm):
         'class': 'glass-input',
         'placeholder': 'Password'
     }))
+
+from .models import TeacherNoteUpload, Chapter
+
+class TeacherNoteUploadForm(forms.ModelForm):
+    class Meta:
+        model = TeacherNoteUpload
+        fields = ['chapter', 'pdf_file']
+        widgets = {
+            'chapter': forms.Select(attrs={'class': 'glass-select'}),
+            'pdf_file': forms.FileInput(attrs={'class': 'glass-file-input', 'accept': '.pdf'}),
+        }

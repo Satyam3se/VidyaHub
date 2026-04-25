@@ -29,7 +29,7 @@
             <div style="max-width: 400px; margin: 1.5rem auto; text-align: left;">
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.5rem;">
                     <span>Level {{ profile.level }}</span>
-                    <span class="text-muted">{{ profile.xp }} / {{ profile.level * 500 }} XP</span>
+                    <span class="text-muted">{{ profile.xp }} / {{ profile.get_xp_for_next_level }} XP</span>
                 </div>
                 <div style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden;">
                     <div style="height: 100%; width: {{ profile.get_xp_progress }}%; background: linear-gradient(90deg, #6366f1, #818cf8); border-radius: 5px;"></div>
