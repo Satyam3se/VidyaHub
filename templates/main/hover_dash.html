@@ -18,7 +18,9 @@
         </div>
 
         <div id="game-container">
-            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            <canvas id="gameCanvas"></canvas>
+            <div class="mobile-hint hidden-laptop">Tap anywhere to JUMP</div>
+
             
             <div id="start-overlay" class="overlay glass">
                 <div class="content animate-scale">
@@ -60,14 +62,31 @@
     width: 100%;
     max-width: 800px;
     margin: 0 auto;
-    height: 60vh;
+    aspect-ratio: 4/3;
     background: #000;
     border-radius: 2rem;
     overflow: hidden;
     border: 2px solid rgba(255,255,255,0.05);
     cursor: pointer;
 }
-canvas { width: 100%; height: 100%; display: block; object-fit: cover; }
+canvas { width: 100%; height: 100%; display: block; }
+
+.mobile-hint {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.3);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    pointer-events: none;
+    z-index: 5;
+}
+
+@media (max-width: 768px) {
+    .space-arena { padding-top: 5rem; }
+}
 
 .overlay {
     position: absolute; inset: 0;
@@ -93,8 +112,15 @@ const startOverlay = document.getElementById('start-overlay');
 const gameOverOverlay = document.getElementById('game-over');
 const startBtn = document.getElementById('start-btn');
 
-let width = canvas.width;
-let height = canvas.height;
+let width = 800;
+let height = 600;
+
+function resizeCanvas() {
+    canvas.width = 800;
+    canvas.height = 600;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 let player;
 let wall = null;

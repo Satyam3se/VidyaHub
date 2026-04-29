@@ -256,11 +256,24 @@ canvas.addEventListener('mousemove', (e) => {
     }
 });
 
-canvas.addEventListener('mousedown', () => {
-    if (gameActive) projectiles.push(new Projectile(player.x, player.y - 30));
-});
+// Mobile Touch Controls
+canvas.addEventListener('touchmove', (e) => {
+    if (gameActive) {
+        const rect = canvas.getBoundingClientRect();
+        player.x = e.touches[0].clientX - rect.left;
+        e.preventDefault();
+    }
+}, {passive: false});
+
+// Auto-fire logic for mobile & desktop
+setInterval(() => {
+    if (gameActive) {
+        projectiles.push(new Projectile(player.x, player.y - 30));
+    }
+}, 400); // Shoot every 0.4s
 
 startBtn.onclick = () => {
+
     startOverlay.classList.add('hidden');
     initGame();
 };
