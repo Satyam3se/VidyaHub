@@ -55,13 +55,19 @@ def generate_with_groq(prompt):
         response = requests.post(
             GROQ_URL,
             headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
-            json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": prompt}], "temperature": 0.3, "max_tokens": 4000},
+            json={"model": "llama3-8b-8192", "messages": [{"role": "user", "content": prompt}], "temperature": 0.3, "max_tokens": 4000},
             timeout=60
         )
-        return response.json()['choices'][0]['message']['content']
+        res_data = response.json()
+        if 'choices' in res_data:
+            return res_data['choices'][0]['message']['content']
+        else:
+            print(f"  [!] Groq API Error: {res_data}")
+            return None
     except Exception as e:
-        print(f"  [!] Groq: {e}")
+        print(f"  [!] Groq Exception: {e}")
         return None
+
 
 def generate_with_ollama(prompt):
     try:
