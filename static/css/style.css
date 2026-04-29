@@ -1810,10 +1810,13 @@ li {
     .space-arena, .game-arena, .duel-arena, .battle-section, .memory-arena {
         padding-top: 5rem !important;
         padding-bottom: 2rem !important;
-        height: auto !important;
+        height: 100vh !important;
         min-height: 100vh;
-        overflow-y: auto !important;
+        overflow: hidden !important; /* Stop vertical scrolling in games */
+        overscroll-behavior: none !important; /* Stop the bounce effect */
+        touch-action: none !important; /* Stop browser handling of touch */
     }
+
 
     /* Universal Game Container Scaling */
     #game-container {
