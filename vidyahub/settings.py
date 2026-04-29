@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import dj_database_url
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -26,10 +27,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-@88&mrlei00926axdi7mtbhg=*-2ghgmo1z%*2x+e7*=dlga!l'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-@88&mrlei00926axdi7mtbhg=*-2ghgmo1z%*2x+e7*=dlga!l')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
+# Default to False if PRODUCTION is set, else True for local dev
+_is_prod = os.getenv('PRODUCTION', 'False').lower() == 'true'
+DEBUG = os.getenv('DEBUG', str(not _is_prod)).lower() == 'true'
 
 ALLOWED_HOSTS = ['*']
 if os.getenv('RENDER_EXTERNAL_HOSTNAME'):
@@ -92,6 +95,11 @@ DATABASES = {
         },
     }
 }
+
+# Override with PostgreSQL if DATABASE_URL is set (Render deployment)
+database_url = os.getenv("DATABASE_URL")
+if database_url:
+    DATABASES['default'] = dj_database_url.parse(database_url)
 
 
 # Password validation

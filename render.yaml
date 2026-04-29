@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput
-    startCommand: python run_app.py
+    startCommand: gunicorn run_combined:combined_app --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT
     healthCheckPath: /
     envVars:
       - key: PYTHON_VERSION
@@ -17,3 +17,7 @@ services:
         value: "False"
       - key: PRODUCTION
         value: "True"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vidyahub-db
+          property: connectionString
