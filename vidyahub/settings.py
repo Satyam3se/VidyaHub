@@ -96,28 +96,41 @@ DATABASES = {
     }
 }
 
-# Override with PostgreSQL if DATABASE_URL is set (Render deployment)
-# Use regex to extract a valid postgres URL even if garbage is prepended to it
-# (e.g. Render sometimes produces "vidyahupostgresql://..." with db-name prefix)
+# Override with PostgreSQL if DATABASE_URL is set (Render deployment).
+# We use urllib.parse directly to avoid dj_database_url scheme-handling bugs.
+# Render's connectionString uses 'postgresql://' which some dj_database_url
+# versions don't recognize, causing the raw URL to be set as the DB NAME.
 import re as _re
+from urllib.parse import urlparse as _urlparse
 
 _raw_db_url = os.getenv("DATABASE_URL", "").strip()
 
-# Extract the first valid postgres(ql):// URL found anywhere in the string
-_match = _re.search(r'(postgres(?:ql)?://[^\s]+)', _raw_db_url)
-if _match:
-    _db_url = _match.group(1)
-    # Normalize postgresql:// → postgres:// for older dj_database_url versions
-    if _db_url.startswith("postgresql://"):
-        _db_url = "postgres://" + _db_url[len("postgresql://"):]
-    DATABASES['default'] = dj_database_url.parse(_db_url, conn_max_age=600)
+# Extract valid postgres(ql):// URL even if garbage is prepended
+# e.g. Render sometimes yields "vidyahupostgresql://..." with db-name prefix
+_pg_match = _re.search(r'(postgres(?:ql)?://\S+)', _raw_db_url)
+if _pg_match:
+    _db_url = _pg_match.group(1)
+    _p = _urlparse(_db_url)
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': _p.path.lstrip('/'),          # e.g. "vidyahub"
+        'USER': _p.username or '',
+        'PASSWORD': _p.password or '',
+        'HOST': _p.hostname or '',
+        'PORT': str(_p.port) if _p.port else '5432',
+        'CONN_MAX_AGE': 600,
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
+    }
 elif _raw_db_url:
     import warnings
     warnings.warn(
-        f"DATABASE_URL is set but contains no recognizable postgres URL "
-        f"(value starts with: {_raw_db_url[:40]!r}). Falling back to SQLite.",
+        f"DATABASE_URL contains no recognizable postgres URL "
+        f"(starts with: {_raw_db_url[:40]!r}). Using SQLite fallback.",
         RuntimeWarning,
     )
+
 
 
 # Password validation
