@@ -112,6 +112,9 @@ if _raw_db_url.startswith(("postgres://", "postgresql://")):
         conn_max_age=600,
         conn_health_checks=True,
     )
+    # Debug print for Render logs (masking password)
+    _db = DATABASES['default']
+    print(f"DATABASE ATTEMPT: User={_db.get('USER')} Host={_db.get('HOST')} Name={_db.get('NAME')}")
 elif _raw_db_url:
     import warnings
     warnings.warn(f"DATABASE_URL is set but malformed. Falling back to SQLite.")
