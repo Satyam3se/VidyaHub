@@ -692,9 +692,23 @@ li {
     }
 
     .hero-title {
-        font-size: 2.5rem;
+        font-size: 2.25rem;
+    }
+    
+    .dashboard-wrapper {
+        padding: 6rem 1rem 2rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .container {
+        padding: 0 1rem;
     }
 }
+
 
 /* Video Player Section */
 .player-section {
@@ -1787,3 +1801,197 @@ li {
 .hidden {
     display: none !important;
 }
+
+/* ==========================================================================
+   MOBILE UI OPTIMIZATIONS (Premium Mobile-First Tweaks)
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+    .player-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .player-sidebar {
+        position: static;
+        max-height: none;
+        margin-top: 2rem;
+    }
+}
+
+@media (max-width: 640px) {
+    :root {
+        --navbar-height: 4.5rem;
+    }
+
+    .navbar {
+        padding: 1rem;
+    }
+    
+    .nav-container {
+        padding: 0.5rem 1.5rem;
+    }
+    
+    .logo-text {
+        font-size: 1.2rem;
+    }
+
+    /* Hero Section Mobile */
+    .hero {
+        padding: 7rem 1rem 4rem;
+    }
+    
+    .hero-title {
+        font-size: 2.2rem;
+        letter-spacing: -1px;
+    }
+    
+    .hero-subtitle {
+        font-size: 1rem;
+        padding: 0 1rem;
+    }
+    
+    .hero-actions {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 0 2rem;
+    }
+    
+    /* Dashboard & Course Grid */
+    .dashboard-wrapper {
+        padding: 6rem 1rem 6rem; /* Bottom padding for mobile nav */
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important; /* 2 columns for cards on mobile */
+        gap: 0.75rem;
+    }
+    
+    .stat-card {
+        padding: 1.25rem;
+    }
+    
+    .grade-number {
+        font-size: 1.5rem;
+    }
+    
+    .stat-label {
+        font-size: 0.8rem;
+    }
+
+    /* Chapter List Mobile */
+    .chapter-item {
+        padding: 1.25rem;
+        flex-direction: row; /* Keep it row-based for better list look */
+    }
+    
+    .chapter-name {
+        font-size: 1.1rem;
+    }
+    
+    .chapter-action {
+        width: 36px;
+        height: 36px;
+    }
+
+    /* Video Player Mobile */
+    .player-section {
+        padding: 5rem 1rem 6rem;
+    }
+    
+    .player-title {
+        font-size: 1.6rem;
+    }
+    
+    .video-info {
+        padding: 1.5rem;
+        border-radius: 1.5rem;
+    }
+    
+    .video-info h2 {
+        font-size: 1.4rem;
+    }
+    
+    .video-info p {
+        font-size: 0.95rem;
+    }
+    
+    .lesson-actions {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .lesson-actions .btn {
+        width: 100%;
+    }
+
+    /* Auth Pages Mobile */
+    .auth-wrapper {
+        padding: 1rem;
+    }
+    
+    .glass-card {
+        padding: 2rem 1.5rem;
+    }
+    
+    .auth-title {
+        font-size: 1.8rem;
+    }
+
+    /* Mobile Nav Bar Fix */
+    .bottom-nav {
+        display: flex !important;
+        position: fixed;
+        bottom: 1.5rem;
+        left: 1rem;
+        right: 1rem;
+        height: 4.5rem;
+        border-radius: 2rem;
+        padding: 0 1.5rem;
+        justify-content: space-around;
+        align-items: center;
+        z-index: 2000;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        background: rgba(15, 23, 42, 0.8) !important;
+        backdrop-filter: blur(20px) !important;
+    }
+    
+    .bnav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+        color: var(--text-muted);
+    }
+    
+    .bnav-item.active {
+        color: var(--primary);
+    }
+    
+    .bnav-item i {
+        width: 22px;
+        height: 22px;
+    }
+    
+    .bnav-item span {
+        font-size: 0.65rem;
+        font-weight: 600;
+    }
+    
+    /* Footer Hidden on Mobile (Clean look) */
+    .footer {
+        display: none;
+    }
+
+    /* Stats Grid for Courses Dashboard */
+    .courses-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* Landscape Mode Tweak */
+@media (max-height: 500px) {
+    .bottom-nav {
+        display: none !important;
+    }
+}
+
