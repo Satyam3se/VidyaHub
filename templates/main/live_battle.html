@@ -157,19 +157,19 @@
 
 <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 <script>
-    // Connect to socket server - intelligently determine URL
-    // If we're on a local IP/localhost, use port 8001. 
-    // Otherwise, use the same origin but with socket.io path.
+    // Socket connection strategy:
+    // - Local/WiFi access (192.168.x.x, localhost): connect to port 8001 (socket_run.py)
+    // - Cloudflare tunnel / public URL: connect to same origin (tunnels proxy all ports together)
     let SOCKET_SERVER_URL = window.location.origin;
-    if (SOCKET_SERVER_URL.includes('localhost') || SOCKET_SERVER_URL.includes('192.168.') || SOCKET_SERVER_URL.includes('127.0.0.1')) {
-        // Local/Network access: use port 8001
-        SOCKET_SERVER_URL = SOCKET_SERVER_URL.replace(':8000', ':8001');
-        if (!SOCKET_SERVER_URL.includes(':8001')) {
-            SOCKET_SERVER_URL += ':8001';
-        }
-    }
+    const host = window.location.hostname;
     
-    console.log('Attempting to connect to Battle Server at:', SOCKET_SERVER_URL);
+    if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.')) {
+        // Local / WiFi: socket_run.py runs separately on port 8001
+        SOCKET_SERVER_URL = window.location.protocol + '//' + host + ':8001';
+    }
+    // For tunnels (trycloudflare.com, loca.lt, etc): stay on same origin - the tunnel proxies it
+    
+    console.log('Connecting to Battle Server at:', SOCKET_SERVER_URL);
     
     const socket = io(SOCKET_SERVER_URL, {
         transports: ['polling', 'websocket'],
@@ -209,7 +209,8 @@
             <div style="color: #ef4444; padding: 2rem;">
                 <i data-lucide="alert-triangle" style="width: 48px; height: 48px;"></i>
                 <p class="mt-2">Battle server is offline!</p>
-                <p class="text-muted" style="font-size: 0.8rem;">Run: python socket_run.py</p>
+                <p class="text-muted" style="font-size: 0.8rem;">Make sure you started VidyaHub with START_WIFI.bat (not manage.py)</p>
+                <button onclick="location.reload()" style="margin-top:1rem; padding: 0.5rem 1.5rem; background: rgba(99,102,241,0.2); border: 1px solid #6366f1; border-radius: 0.5rem; color: #fff; cursor: pointer;">🔄 Retry</button>
             </div>
         `;
         if (window.lucide) lucide.createIcons();

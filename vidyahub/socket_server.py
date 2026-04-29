@@ -6,13 +6,14 @@ Class-based matchmaking: Class 1 students battle Class 1, JEE with JEE, etc.
 import socketio
 import random
 import json
+import time
 from main.models import MCQQuestion, Chapter, Subject, Profile
 from main.utils import update_user_score
 from django.contrib.auth.models import User
 
-# Create a Socket.IO server with eventlet for async
+# Create a Socket.IO server with threading for async
 sio = socketio.Server(
-    async_mode='eventlet',
+    async_mode='threading',
     cors_allowed_origins='*',
     cors_credentials=True,
     transports=['polling', 'websocket'],
@@ -34,21 +35,8 @@ QUESTION_TIME = 15  # seconds per question
 DELAY_BETWEEN_QUESTIONS = 2  # seconds
 
 def get_queue_key(grade, target_exam, subject_id):
-    """Generate matchmaking queue key based on grade and target exam"""
-    # Normalize grade - remove 'th', 'st', 'nd', 'rd' suffix
-    if grade:
-        grade_normalized = grade.lower().replace('th', '').replace('st', '').replace('nd', '').replace('rd', '').strip()
-    else:
-        grade_normalized = None
-    
-    if target_exam and target_exam != 'none':
-        # JEE/NEET/NDA students match with same exam
-        return f"exam_{target_exam}"
-    elif grade_normalized and grade_normalized.isdigit():
-        # Regular students match by class
-        return f"class_{grade_normalized}"
-    else:
-        return "general"
+    """Generate matchmaking queue key based solely on subject to ensure players match!"""
+    return f"subject_{subject_id}"
 
 @sio.event
 def connect(sid, environ):
@@ -125,13 +113,12 @@ def join_battle(sid, data):
     # Check if already in queue
     in_queue = any(p['sid'] == sid for p in matchmaking_queue[queue_key])
     
-    # Get queue description
-    if target_exam and target_exam != 'none':
-        queue_desc = f"{target_exam.upper()} Students"
-    elif grade:
-        queue_desc = f"Class {grade}"
-    else:
-        queue_desc = "General Pool"
+    # Get queue description based on subject
+    try:
+        subject = Subject.objects.get(id=subject_id)
+        queue_desc = f"{subject.name} Arena"
+    except Subject.DoesNotExist:
+        queue_desc = "Battle Arena"
     
     if not in_queue:
         matchmaking_queue[queue_key].append({
@@ -147,6 +134,12 @@ def join_battle(sid, data):
             'queue_type': queue_desc,
             'message': f'Waiting for opponent ({queue_desc})...'
         }, room=sid)
+        # Schedule AI bot to join if no one else connects after 5 seconds
+        def delayed_bot_spawn():
+            sio.sleep(5)
+            check_and_spawn_bot(queue_key, sid, subject_id)
+            
+        sio.start_background_task(delayed_bot_spawn)
     
     print(f"Player {username} joined queue: {queue_key} (total: {len(matchmaking_queue[queue_key])})")
     
@@ -161,6 +154,75 @@ def join_battle(sid, data):
         sio.enter_room(p2['sid'], room_id)
         
         start_battle(room_id, p1, p2, subject_id)
+
+def check_and_spawn_bot(queue_key, sid, subject_id):
+    """Spawns an AI bot if the user is still waiting in the queue"""
+    if queue_key in matchmaking_queue:
+        for i, p in enumerate(matchmaking_queue[queue_key]):
+            if p['sid'] == sid:
+                # User is still waiting! Remove them and start a bot match
+                p1 = matchmaking_queue[queue_key].pop(i)
+                
+                print(f"No human opponent found. Spawning VidyaBot for {p1['username']}")
+                
+                bot_sid = f"bot_{sid}"
+                p2 = {
+                    'sid': bot_sid,
+                    'user_id': 0,
+                    'username': 'VidyaBot (AI)',
+                    'grade': p1['grade'],
+                    'target_exam': p1['target_exam'],
+                    'subject_id': subject_id
+                }
+                
+                room_id = f"battle_{p1['sid']}_{p2['sid']}"
+                sio.enter_room(p1['sid'], room_id)
+                # No need for bot to physically join a room
+                
+                start_battle(room_id, p1, p2, subject_id)
+                
+                # Start bot answer loop in background
+                sio.start_background_task(bot_answer_loop, room_id, bot_sid)
+                return
+
+def bot_answer_loop(room_id, bot_sid):
+    """Simulates an AI opponent answering questions"""
+    last_q_idx = -1
+    
+    while True:
+        battle = active_battles.get(room_id)
+        if not battle:
+            break
+            
+        current_q_idx = battle['current_q']
+        
+        # Ensure we are on a valid question and we haven't answered it yet
+        if current_q_idx < len(battle['questions']) and current_q_idx != last_q_idx:
+            # Wait a random time between 2 and 8 seconds to simulate thinking
+            wait_time = random.uniform(2.0, 8.0)
+            sio.sleep(wait_time)
+            
+            # Re-check battle state after waiting (might have been closed or advanced)
+            battle = active_battles.get(room_id)
+            if not battle or current_q_idx != battle['current_q'] or bot_sid in battle['answered']:
+                continue
+                
+            q = battle['questions'][current_q_idx]
+            
+            # Bot answers correctly 60% of the time
+            if random.random() < 0.6:
+                bot_answer = q['correct']
+            else:
+                wrong_options = ['A', 'B', 'C', 'D']
+                if q['correct'] in wrong_options:
+                    wrong_options.remove(q['correct'])
+                bot_answer = random.choice(wrong_options)
+                
+            # Submit answer
+            submit_answer(bot_sid, {'room_id': room_id, 'answer': bot_answer})
+            last_q_idx = current_q_idx
+            
+        sio.sleep(1)
 
 def start_battle(room_id, p1, p2, subject_id):
     """Initialize and start a new battle with grade-appropriate questions"""
@@ -417,5 +479,4 @@ def end_battle(room_id):
     del active_battles[room_id]
 
 def eventlet_sleep(seconds):
-    import eventlet
-    eventlet.sleep(seconds)
+    time.sleep(seconds)

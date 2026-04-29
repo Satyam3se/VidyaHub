@@ -151,12 +151,13 @@ REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 # Socket.io Configuration
 SOCKETIO_SERVER_URL = os.getenv('SOCKETIO_SERVER_URL', 'http://localhost:8000')
 
-# CSRF Trusted Origins for Localtunnel and Production
+# CSRF Trusted Origins for all tunnel types and production
 CSRF_TRUSTED_ORIGINS = [
     'https://*.loca.lt',
     'https://*.onrender.com',
     'https://*.lhr.life',
     'https://*.serveousercontent.com',
+    'https://*.trycloudflare.com',   # Cloudflare Quick Tunnels (START_GLOBAL.bat)
 ]
 
 # Dynamically add current tunnel URL from environment
