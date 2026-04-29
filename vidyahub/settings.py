@@ -98,26 +98,31 @@ DATABASES = {
 
 # Override with PostgreSQL if DATABASE_URL is set (Render deployment)
 import dj_database_url
+import re as _re
 
 _raw_db_url = os.getenv("DATABASE_URL", "").strip()
 
-# Clean the URL if it has the 'vidyahu' prefix prepended by Render
-if _raw_db_url.startswith("vidyahupostgres"):
-    _raw_db_url = _raw_db_url.replace("vidyahu", "", 1)
-
-# Use dj_database_url to parse the cleaned URL
-if _raw_db_url.startswith(("postgres://", "postgresql://")):
+# SUPER-ROBUST EXTRACTION:
+# Find 'postgresql://' or 'postgres://' anywhere in the string and take everything after it.
+_match = _re.search(r'(postgres(?:ql)?://\S+)', _raw_db_url)
+if _match:
+    _clean_url = _match.group(1)
     DATABASES['default'] = dj_database_url.config(
-        default=_raw_db_url,
+        default=_clean_url,
         conn_max_age=600,
         conn_health_checks=True,
     )
-    # Debug print for Render logs (masking password)
+    # Ensure the NAME isn't the whole URL (which happens if dj_database_url fails to parse)
+    if len(DATABASES['default'].get('NAME', '')) > 63:
+        # Manually extract the DB name from the end of the URL
+        _db_name = _clean_url.split('/')[-1].split('?')[0]
+        DATABASES['default']['NAME'] = _db_name or 'vidyahub'
+
+    # Debug print for Render logs
     _db = DATABASES['default']
-    print(f"DATABASE ATTEMPT: User={_db.get('USER')} Host={_db.get('HOST')} Name={_db.get('NAME')}")
+    print(f"DB CONFIG: Host={_db.get('HOST')} Name={_db.get('NAME')} User={_db.get('USER')}")
 elif _raw_db_url:
-    import warnings
-    warnings.warn(f"DATABASE_URL is set but malformed. Falling back to SQLite.")
+    print("WARNING: DATABASE_URL detected but no valid postgres scheme found. Falling back to SQLite.")
 
 
 
