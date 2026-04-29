@@ -107,22 +107,34 @@ _raw_db_url = os.getenv("DATABASE_URL", "").strip()
 _match = _re.search(r'(postgres(?:ql)?://\S+)', _raw_db_url)
 if _match:
     _clean_url = _match.group(1)
+    # Ensure SSL mode is requested in the URL if not present
+    if 'sslmode=' not in _clean_url:
+        _clean_url += ('&' if '?' in _clean_url else '?') + 'sslmode=require'
+        
     DATABASES['default'] = dj_database_url.config(
         default=_clean_url,
         conn_max_age=600,
         conn_health_checks=True,
     )
+    
+    # Force SSL and other robust options manually just in case
+    DATABASES['default'].update({
+        'OPTIONS': {
+            'sslmode': 'require',
+            'connect_timeout': 10,
+        }
+    })
+
     # Ensure the NAME isn't the whole URL (which happens if dj_database_url fails to parse)
     if len(DATABASES['default'].get('NAME', '')) > 63:
-        # Manually extract the DB name from the end of the URL
         _db_name = _clean_url.split('/')[-1].split('?')[0]
         DATABASES['default']['NAME'] = _db_name or 'vidyahub'
 
-    # Debug print for Render logs
     _db = DATABASES['default']
     print(f"DB CONFIG: Host={_db.get('HOST')} Name={_db.get('NAME')} User={_db.get('USER')}")
 elif _raw_db_url:
     print("WARNING: DATABASE_URL detected but no valid postgres scheme found. Falling back to SQLite.")
+
 
 
 
