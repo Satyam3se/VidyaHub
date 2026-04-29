@@ -1801,6 +1801,136 @@ li {
 .hidden {
     display: none !important;
 }
+/* ==========================================================================
+   UNIVERSAL MOBILE GAME OPTIMIZATION
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    /* Global Arena Tweaks */
+    .space-arena, .game-arena, .duel-arena, .battle-section, .memory-arena {
+        padding-top: 5rem !important;
+        padding-bottom: 2rem !important;
+        height: auto !important;
+        min-height: 100vh;
+        overflow-y: auto !important;
+    }
+
+    /* Universal Game Container Scaling */
+    #game-container {
+        aspect-ratio: 4/3 !important;
+        height: auto !important;
+        max-width: 100% !important;
+        border-radius: 1rem !important;
+    }
+
+    canvas {
+        width: 100% !important;
+        height: 100% !important;
+        touch-action: none;
+    }
+
+    /* Game UI Elements */
+    .game-ui {
+        padding: 0.75rem 1rem !important;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center !important;
+    }
+
+    .game-ui .stats {
+        width: 100%;
+        justify-content: center;
+        order: 2;
+    }
+
+    .game-ui .target-question {
+        width: 100%;
+        order: 1;
+    }
+
+    .game-ui .timer-box {
+        width: 100%;
+        text-align: center;
+        order: 3;
+    }
+
+    /* Overlays */
+    .overlay .content {
+        padding: 1.5rem !important;
+        width: 90% !important;
+    }
+
+    .overlay h1 { font-size: 1.8rem !important; }
+    .overlay p { font-size: 0.9rem !important; }
+
+    /* Battle & Quiz Grids */
+    .options-grid, .quiz-options, .grid-cols-2 {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+    }
+
+    .option-btn, .opt-btn {
+        padding: 1rem !important;
+        font-size: 0.9rem !important;
+    }
+
+    /* Live Battle Specifics */
+    .player-grid {
+        grid-template-columns: 1fr !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .player-stats {
+        padding: 1rem !important;
+        flex-direction: column !important;
+        gap: 1rem;
+    }
+
+    .player-sidebar {
+        margin-top: 1rem;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .battle-icon-glow i {
+        width: 60px !important;
+        height: 60px !important;
+    }
+
+    /* Puzzle & Word Games */
+    .memory-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 0.5rem !important;
+    }
+
+    .memory-card {
+        height: 100px !important;
+    }
+
+    .word-display {
+        font-size: 1.5rem !important;
+        letter-spacing: 0.3rem !important;
+    }
+
+    .scramble-card {
+        padding: 1.5rem !important;
+    }
+
+    /* Ninja/Slasher Sensitivity Areas */
+    .mobile-controls {
+        display: flex !important;
+    }
+}
+
+/* Touch-specific feedback */
+@media (hover: none) {
+    .btn:active, .option-btn:active, .opt-btn:active, .ctrl-btn:active {
+        transform: scale(0.95);
+        background: var(--primary);
+        color: white;
+    }
+}
 
 /* ==========================================================================
    MOBILE UI OPTIMIZATIONS (Premium Mobile-First Tweaks)

@@ -60,13 +60,17 @@
     width: 100%;
     max-width: 800px;
     margin: 0 auto;
-    height: 60vh;
+    aspect-ratio: 4/3;
     background: #0f172a;
     border-radius: 2rem;
     overflow: hidden;
     border: 2px solid rgba(255,255,255,0.05);
 }
-canvas { width: 100%; height: 100%; display: block; object-fit: contain; }
+canvas { width: 100%; height: 100%; display: block; }
+
+@media (max-width: 768px) {
+    .space-arena { padding-top: 5rem; }
+}
 
 .overlay {
     position: absolute; inset: 0;
@@ -92,11 +96,20 @@ const startOverlay = document.getElementById('start-overlay');
 const gameOverOverlay = document.getElementById('game-over');
 const startBtn = document.getElementById('start-btn');
 
-let width = canvas.width;
-let height = canvas.height;
+let width = 800;
+let height = 600;
 
-let paddle = { x: width/2 - 50, y: height - 30, width: 100, height: 15 };
+function resizeCanvas() {
+    canvas.width = 800;
+    canvas.height = 600;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+const isMobile = window.innerWidth < 768;
+let paddle = { x: width/2 - (isMobile ? 75 : 50), y: height - 30, width: (isMobile ? 150 : 100), height: 15 };
 let ball = { x: width/2, y: height - 45, radius: 8, vx: 5, vy: -5, speed: 7, active: false };
+
 let bricks = [];
 let particles = [];
 let score = 0, lives = 3, gameActive = false, timeLeft = 60;
