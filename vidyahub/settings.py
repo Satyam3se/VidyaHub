@@ -97,18 +97,25 @@ DATABASES = {
 }
 
 # Override with PostgreSQL if DATABASE_URL is set (Render deployment)
-database_url = os.getenv("DATABASE_URL", "").strip()
-# Normalize postgresql:// → postgres:// (some dj_database_url versions need this)
-if database_url.startswith("postgresql://"):
-    database_url = "postgres://" + database_url[len("postgresql://"):]
-if database_url and database_url.startswith("postgres://"):
-    DATABASES['default'] = dj_database_url.parse(database_url, conn_max_age=600)
-elif database_url:
-    # DATABASE_URL is set but malformed — log a warning and fall back to SQLite
+# Use regex to extract a valid postgres URL even if garbage is prepended to it
+# (e.g. Render sometimes produces "vidyahupostgresql://..." with db-name prefix)
+import re as _re
+
+_raw_db_url = os.getenv("DATABASE_URL", "").strip()
+
+# Extract the first valid postgres(ql):// URL found anywhere in the string
+_match = _re.search(r'(postgres(?:ql)?://[^\s]+)', _raw_db_url)
+if _match:
+    _db_url = _match.group(1)
+    # Normalize postgresql:// → postgres:// for older dj_database_url versions
+    if _db_url.startswith("postgresql://"):
+        _db_url = "postgres://" + _db_url[len("postgresql://"):]
+    DATABASES['default'] = dj_database_url.parse(_db_url, conn_max_age=600)
+elif _raw_db_url:
     import warnings
     warnings.warn(
-        f"DATABASE_URL is set but does not look like a valid PostgreSQL URL "
-        f"(starts with: {database_url[:30]!r}). Falling back to SQLite.",
+        f"DATABASE_URL is set but contains no recognizable postgres URL "
+        f"(value starts with: {_raw_db_url[:40]!r}). Falling back to SQLite.",
         RuntimeWarning,
     )
 
