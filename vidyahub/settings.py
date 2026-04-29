@@ -96,42 +96,26 @@ DATABASES = {
     }
 }
 
-# Override with PostgreSQL if DATABASE_URL is set (Render deployment).
-import re as _re
-from urllib.parse import urlparse as _urlparse
+# Override with PostgreSQL if DATABASE_URL is set (Render deployment)
+import dj_database_url
 
 _raw_db_url = os.getenv("DATABASE_URL", "").strip()
 
-# CRITICAL FIX: If Render has 'vidyahu' prepended to the URL, strip it.
+# Clean the URL if it has the 'vidyahu' prefix prepended by Render
 if _raw_db_url.startswith("vidyahupostgres"):
     _raw_db_url = _raw_db_url.replace("vidyahu", "", 1)
 
-# Extract valid postgres(ql):// URL
-_pg_match = _re.search(r'(postgres(?:ql)?://\S+)', _raw_db_url)
-if _pg_match:
-    _db_url = _pg_match.group(1)
-    _p = _urlparse(_db_url)
-    
-    # Force the database name to be 'vidyahub' if the path extraction fails or is too long
-    _db_name = _p.path.lstrip('/')
-    if not _db_name or len(_db_name) > 63:
-        _db_name = 'vidyahub'
-        
-    DATABASES['default'] = {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': _db_name,
-        'USER': _p.username or '',
-        'PASSWORD': _p.password or '',
-        'HOST': _p.hostname or '',
-        'PORT': str(_p.port) if _p.port else '5432',
-        'CONN_MAX_AGE': 600,
-        'OPTIONS': {
-            'sslmode': 'require',
-        },
-    }
+# Use dj_database_url to parse the cleaned URL
+if _raw_db_url.startswith(("postgres://", "postgresql://")):
+    DATABASES['default'] = dj_database_url.config(
+        default=_raw_db_url,
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 elif _raw_db_url:
     import warnings
-    warnings.warn(f"DATABASE_URL malformed: {_raw_db_url[:50]}... Falling back to SQLite.")
+    warnings.warn(f"DATABASE_URL is set but malformed. Falling back to SQLite.")
+
 
 
 
