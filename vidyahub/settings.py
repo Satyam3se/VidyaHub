@@ -97,23 +97,29 @@ DATABASES = {
 }
 
 # Override with PostgreSQL if DATABASE_URL is set (Render deployment).
-# We use urllib.parse directly to avoid dj_database_url scheme-handling bugs.
-# Render's connectionString uses 'postgresql://' which some dj_database_url
-# versions don't recognize, causing the raw URL to be set as the DB NAME.
 import re as _re
 from urllib.parse import urlparse as _urlparse
 
 _raw_db_url = os.getenv("DATABASE_URL", "").strip()
 
-# Extract valid postgres(ql):// URL even if garbage is prepended
-# e.g. Render sometimes yields "vidyahupostgresql://..." with db-name prefix
+# CRITICAL FIX: If Render has 'vidyahu' prepended to the URL, strip it.
+if _raw_db_url.startswith("vidyahupostgres"):
+    _raw_db_url = _raw_db_url.replace("vidyahu", "", 1)
+
+# Extract valid postgres(ql):// URL
 _pg_match = _re.search(r'(postgres(?:ql)?://\S+)', _raw_db_url)
 if _pg_match:
     _db_url = _pg_match.group(1)
     _p = _urlparse(_db_url)
+    
+    # Force the database name to be 'vidyahub' if the path extraction fails or is too long
+    _db_name = _p.path.lstrip('/')
+    if not _db_name or len(_db_name) > 63:
+        _db_name = 'vidyahub'
+        
     DATABASES['default'] = {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': _p.path.lstrip('/'),          # e.g. "vidyahub"
+        'NAME': _db_name,
         'USER': _p.username or '',
         'PASSWORD': _p.password or '',
         'HOST': _p.hostname or '',
@@ -125,11 +131,8 @@ if _pg_match:
     }
 elif _raw_db_url:
     import warnings
-    warnings.warn(
-        f"DATABASE_URL contains no recognizable postgres URL "
-        f"(starts with: {_raw_db_url[:40]!r}). Using SQLite fallback.",
-        RuntimeWarning,
-    )
+    warnings.warn(f"DATABASE_URL malformed: {_raw_db_url[:50]}... Falling back to SQLite.")
+
 
 
 
