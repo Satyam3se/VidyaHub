@@ -33,8 +33,11 @@ scripts = [
     'scripts/seeding/add_jee_mcqs.py',
     'scripts/seeding/add_neet_mcqs.py',
     'scripts/seeding/add_nda_pyqs.py',
+    'scripts/seeding/fetch_youtube_videos.py', # ADDED: Get real videos for all chapters
+    'scripts/seeding/seed_chapter_notes.py',   # ADDED: Get notes for all chapters
     'scripts/seeding/seed_achievements.py',
 ]
+
 
 if __name__ == "__main__":
     print("Starting Master Seeding Process...")
