@@ -97,9 +97,20 @@ DATABASES = {
 }
 
 # Override with PostgreSQL if DATABASE_URL is set (Render deployment)
-database_url = os.getenv("DATABASE_URL")
-if database_url:
-    DATABASES['default'] = dj_database_url.parse(database_url)
+database_url = os.getenv("DATABASE_URL", "").strip()
+# Normalize postgresql:// → postgres:// (some dj_database_url versions need this)
+if database_url.startswith("postgresql://"):
+    database_url = "postgres://" + database_url[len("postgresql://"):]
+if database_url and database_url.startswith("postgres://"):
+    DATABASES['default'] = dj_database_url.parse(database_url, conn_max_age=600)
+elif database_url:
+    # DATABASE_URL is set but malformed — log a warning and fall back to SQLite
+    import warnings
+    warnings.warn(
+        f"DATABASE_URL is set but does not look like a valid PostgreSQL URL "
+        f"(starts with: {database_url[:30]!r}). Falling back to SQLite.",
+        RuntimeWarning,
+    )
 
 
 # Password validation
