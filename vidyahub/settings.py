@@ -111,11 +111,12 @@ if _match:
     if 'sslmode=' not in _clean_url:
         _clean_url += ('&' if '?' in _clean_url else '?') + 'sslmode=require'
         
-    DATABASES['default'] = dj_database_url.config(
-        default=_clean_url,
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    # Use parse() instead of config() to force the use of our cleaned URL
+    _db_config = dj_database_url.parse(_clean_url, conn_max_age=600)
+    if _db_config:
+        DATABASES['default'] = _db_config
+        DATABASES['default']['CONN_HEALTH_CHECKS'] = True
+
     
     # Force SSL and other robust options manually just in case
     DATABASES['default'].update({
