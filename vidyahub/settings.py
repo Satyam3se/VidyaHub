@@ -106,39 +106,21 @@ import re as _re
 
 _raw_db_url = os.getenv("DATABASE_URL", "").strip()
 
-# SUPER-ROBUST EXTRACTION:
-# Find 'postgresql://' or 'postgres://' anywhere in the string and take everything after it.
-_match = _re.search(r'(postgres(?:ql)?://\S+)', _raw_db_url)
-if _match:
-    _clean_url = _match.group(1)
-    # Ensure SSL mode is requested in the URL if not present
-    if 'sslmode=' not in _clean_url:
-        _clean_url += ('&' if '?' in _clean_url else '?') + 'sslmode=require'
-        
-    # Use parse() instead of config() to force the use of our cleaned URL
-    _db_config = dj_database_url.parse(_clean_url, conn_max_age=600)
+if _raw_db_url:
+    # Check if this is an external host that requires SSL
+    _use_ssl = 'render.com' in _raw_db_url or 'sslmode=require' in _raw_db_url
+    _db_config = dj_database_url.parse(_raw_db_url, conn_max_age=600, ssl_require=_use_ssl)
     if _db_config:
         DATABASES['default'] = _db_config
         DATABASES['default']['CONN_HEALTH_CHECKS'] = True
-
-    
-    # Force SSL and other robust options manually just in case
-    DATABASES['default'].update({
-        'OPTIONS': {
-            'sslmode': 'require',
+        DATABASES['default']['OPTIONS'] = {
             'connect_timeout': 10,
         }
-    })
-
-    # Ensure the NAME isn't the whole URL (which happens if dj_database_url fails to parse)
-    if len(DATABASES['default'].get('NAME', '')) > 63:
-        _db_name = _clean_url.split('/')[-1].split('?')[0]
-        DATABASES['default']['NAME'] = _db_name or 'vidyahub'
-
-    _db = DATABASES['default']
-    print(f"DB CONFIG: Host={_db.get('HOST')} Name={_db.get('NAME')} User={_db.get('USER')}")
-elif _raw_db_url:
-    print("WARNING: DATABASE_URL detected but no valid postgres scheme found. Falling back to SQLite.")
+        if _use_ssl:
+            DATABASES['default']['OPTIONS']['sslmode'] = 'require'
+        
+        _db = DATABASES['default']
+        print(f"DB CONFIG: Host={_db.get('HOST')} Name={_db.get('NAME')} User={_db.get('USER')} SSL={_use_ssl}")
 
 
 
