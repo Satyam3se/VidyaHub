@@ -11,9 +11,12 @@ from main.models import MCQQuestion, Chapter, Subject, Profile
 from main.utils import update_user_score
 from django.contrib.auth.models import User
 
-# Create a Socket.IO server with threading for async
+import sys
+async_mode = 'eventlet' if 'eventlet.patcher' in sys.modules or 'eventlet' in sys.modules else 'threading'
+
+# Create a Socket.IO server with dynamic async mode
 sio = socketio.Server(
-    async_mode='threading',
+    async_mode=async_mode,
     cors_allowed_origins='*',
     cors_credentials=True,
     transports=['polling', 'websocket'],
