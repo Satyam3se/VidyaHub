@@ -6,6 +6,15 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'vidyahub.settings')
 import django
 django.setup()
 
+# Auto-migrate database on startup
+try:
+    from django.core.management import call_command
+    print("Running database migrations on startup...", flush=True)
+    call_command('migrate', interactive=False)
+    print("Database migrations complete!", flush=True)
+except Exception as e:
+    print(f"Migration on startup note: {e}", flush=True)
+
 import socketio
 from django.core.wsgi import get_wsgi_application
 from vidyahub.socket_server import sio
