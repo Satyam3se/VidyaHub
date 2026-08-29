@@ -3,14 +3,14 @@ services:
     name: vidyahub
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput && python scripts/seeding/seed_master.py
+    buildCommand: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput
     startCommand: gunicorn run_combined:combined_app --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT
     healthCheckPath: /
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.10"
       - key: DEBUG
-        value: "True"
+        value: "False"
       - key: SECRET_KEY
         generateValue: true
       - key: AI_SIMULATION_MODE
@@ -21,3 +21,10 @@ services:
         fromDatabase:
           name: vidyahub-db
           property: connectionString
+
+databases:
+  - name: vidyahub-db
+    plan: free
+    databaseName: vidyahub
+    user: vidyahub_user
+
