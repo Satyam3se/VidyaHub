@@ -83,4 +83,7 @@ urlpatterns = [
     
     # Student AI Mastery
     path('dashboard/mastery/', views.mastery_dashboard, name='mastery_dashboard'),
+    
+    # One-click Database Seeding Endpoint
+    path('seed-database/', views.seed_database_view, name='seed_database'),
 ]

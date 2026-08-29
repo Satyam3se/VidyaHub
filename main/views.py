@@ -1456,3 +1456,21 @@ def mastery_dashboard(request):
         'mastery_data': mastery_data,
         'profile': profile
     })
+
+def seed_database_view(request):
+    """Admin/Dev endpoint to seed all CBSE courses, grades, subjects, and chapters into the active database."""
+    try:
+        from scripts.seeding.populate_cbse import populate_with_ultimate_cbse_data
+        populate_with_ultimate_cbse_data()
+        grade_count = Grade.objects.count()
+        subject_count = Subject.objects.count()
+        chapter_count = Chapter.objects.count()
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Database seeded successfully!',
+            'grades_created': grade_count,
+            'subjects_created': subject_count,
+            'chapters_created': chapter_count
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
