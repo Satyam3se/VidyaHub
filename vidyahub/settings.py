@@ -13,8 +13,12 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import warnings
 import dj_database_url
 from dotenv import load_dotenv
+
+# Suppress deprecated google.generativeai FutureWarning (we use genai for legacy code)
+warnings.filterwarnings('ignore', category=FutureWarning, module='google.generativeai')
 
 # Load environment variables
 load_dotenv()
@@ -220,3 +224,21 @@ if os.getenv('SOCKETIO_SERVER_URL'):
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'student_dashboard'
 LOGOUT_REDIRECT_URL = 'index'
+
+# Production Security Settings
+if _is_prod:
+    # Secure cookies
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # HTTPS redirect — Render's load balancer already handles HTTPS,
+    # so we trust the X-Forwarded-Proto header
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = False  # Render handles SSL at the proxy level
+    # HSTS — 1 year after the site is confirmed working
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    # Content security
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+
