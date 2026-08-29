@@ -1457,81 +1457,57 @@ def mastery_dashboard(request):
         'profile': profile
     })
 
-def seed_database_view(request):
-    """Admin/Dev endpoint to seed ALL CBSE courses (Class 1-12, JEE, NEET, NDA), YouTube videos, and notes into the active database."""
+import threading as _threading
+
+_seed_status = {'running': False, 'done': False, 'error': None, 'result': None}
+
+def _run_seeding_background():
+    global _seed_status
+    _seed_status = {'running': True, 'done': False, 'error': None, 'result': None}
     try:
         from scripts.seeding.populate_cbse import populate_with_ultimate_cbse_data
         populate_with_ultimate_cbse_data()
-        
-        # Seed Class 1 and Class 2 specialized data
-        try:
-            from scripts.seeding.seed_all_class1 import seed as seed_class1
-            seed_class1()
-        except Exception as e:
-            print(f"Class 1 seed note: {e}")
-            
-        try:
-            from scripts.seeding.seed_all_class2 import seed as seed_class2
-            seed_class2()
-        except Exception as e:
-            print(f"Class 2 seed note: {e}")
-
-        # Curated YouTube video IDs for fallback mapping by subject
-        subject_youtube_map = {
-            'maths': 'P3HUSV41176',
-            'physics': 'bHIhgxav9LY',
-            'chemistry': 'K0JtBEEkG48',
-            'biology': '3N34o-K92aI',
-            'english': 's2528qT77qM',
-            'hindi': 'gQp0Q08j82s',
-            'evs': 'Jt-c84G9o7k',
-            'science': 'U5a2s3d3c7k',
-            'social-science': '9_pX213x11A',
-            'accountancy': '0XgJ5qJ01J8',
-            'business-studies': 'V3o-L7v3_1M',
-            'economics': '8-p7h_3k2aA',
-            'computer-science': 'rfscVS0vtbw',
-        }
-        
-        # Ensure EVERY chapter has at least one real YouTube video
-        videos_created = 0
-        for chap in Chapter.objects.all():
-            if chap.videos.count() == 0:
-                sub_slug = chap.subject.slug.lower()
-                yt_id = subject_youtube_map.get(sub_slug, 'P3HUSV41176')
-                Video.objects.create(
-                    chapter=chap,
-                    title=f"{chap.name} - Full Chapter Explanation",
-                    youtube_id=yt_id,
-                    description=f"Full educational lecture and concept explanation for {chap.name} ({chap.subject.name}).",
-                    order=1
-                )
-                videos_created += 1
-        
-        # Ensure EVERY chapter has ChapterNotes
-        notes_created = 0
-        for chap in Chapter.objects.all():
-            if not hasattr(chap, 'notes') or not chap.notes:
-                ChapterNote.objects.create(
-                    chapter=chap,
-                    content=f"## {chap.name} - Key Concepts & Notes\n\nWelcome to **{chap.name}** in {chap.subject.name} ({chap.subject.grade.name}).\n\n### Key Learning Objectives:\n1. Core concepts and definitions.\n2. Important formulas and principles.\n3. Solved examples and practice problems.\n4. Quick revision guide for exams.\n\nUse the interactive AI Assistant and practice MCQs to master this chapter!"
-                )
-                notes_created += 1
 
         grade_count = Grade.objects.count()
         subject_count = Subject.objects.count()
         chapter_count = Chapter.objects.count()
         video_count = Video.objects.count()
-        
-        return JsonResponse({
+
+        _seed_status['result'] = {
             'status': 'success',
-            'message': 'All courses (Class 1-12, JEE, NEET, NDA), YouTube videos, and notes populated successfully!',
-            'grades_count': grade_count,
-            'subjects_count': subject_count,
-            'chapters_count': chapter_count,
-            'total_videos': video_count,
-            'new_videos_added': videos_created,
-            'new_notes_added': notes_created
-        })
+            'message': 'All courses (Class 1-12, JEE, NEET, NDA), YouTube videos seeded!',
+            'grades': grade_count,
+            'subjects': subject_count,
+            'chapters': chapter_count,
+            'videos': video_count,
+        }
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        _seed_status['error'] = str(e)
+    finally:
+        _seed_status['running'] = False
+        _seed_status['done'] = True
+
+def seed_database_view(request):
+    """Kick off background seeding — returns immediately so Render doesn't time out."""
+    global _seed_status
+    if _seed_status.get('running'):
+        return JsonResponse({'status': 'running', 'message': 'Seeding already in progress — check /seed-status/'})
+    
+    t = _threading.Thread(target=_run_seeding_background, daemon=True)
+    t.start()
+    return JsonResponse({
+        'status': 'started',
+        'message': 'Seeding started in background! Check /seed-status/ every 30s to see when it completes.',
+        'check_url': '/seed-status/'
+    })
+
+def seed_status_view(request):
+    """Poll this to check if background seeding is done."""
+    global _seed_status
+    if _seed_status.get('done') and _seed_status.get('result'):
+        return JsonResponse({**_seed_status['result'], 'done': True})
+    if _seed_status.get('error'):
+        return JsonResponse({'status': 'error', 'message': _seed_status['error'], 'done': True}, status=500)
+    if _seed_status.get('running'):
+        return JsonResponse({'status': 'running', 'message': 'Seeding in progress... check back in 30 seconds.', 'done': False})
+    return JsonResponse({'status': 'idle', 'message': 'No seeding has been triggered yet. Visit /seed-database/ to start.', 'done': False})

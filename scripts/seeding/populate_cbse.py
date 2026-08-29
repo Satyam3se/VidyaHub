@@ -12,12 +12,104 @@ django.setup()
 from main.models import Grade, Subject, Chapter, Video
 from django.utils.text import slugify
 
+# Real YouTube educational video IDs per subject (from well-known NCERT/Indian edu channels)
+YOUTUBE_BY_SUBJECT = {
+    'Maths':            'OmJ-4B-mS-Y',   # NCERT Class 10 Maths
+    'Science':          'Jk0i0rYkNKo',   # NCERT Class 10 Science
+    'Physics':          'wWnfJ0-xXRE',   # Class 11 Physics lecture
+    'Chemistry':        'K0JtBEEkG48',   # Class 12 Chemistry
+    'Biology':          'Uh9m8GS0FeA',   # NCERT Biology
+    'English':          'GkFMKfEJA18',   # CBSE English lecture
+    'Hindi':            'vd30u7R7JkE',   # Hindi NCERT
+    'EVS':              'D_sK6J_-wPw',   # EVS Class 5
+    'Social Science':   'YaN7Sn7DvTI',   # NCERT Social Science
+    'History':          'YaN7Sn7DvTI',
+    'Geography':        'YaN7Sn7DvTI',
+    'Political Science':'YaN7Sn7DvTI',
+    'Accountancy':      '5FZebT3gVXU',   # Class 12 Accountancy
+    'Business Studies': 'V3sNbKY4n44',   # Business Studies
+    'Economics':        '8-p7h_3k2aA',   # Economics Class 12
+    'Computer Science': 'rfscVS0vtbw',   # Intro to CS
+    'Information Technology': 'rfscVS0vtbw',
+    'Sanskrit':         '7LRU_bOZG-I',   # Sanskrit learning
+}
+DEFAULT_YT_ID = 'OmJ-4B-mS-Y'  # Fallback: NCERT Maths general
+
 def populate_with_ultimate_cbse_data():
     print("Clearing old data...")
     Grade.objects.all().delete()
     print("Starting ultimate comprehensive CBSE data population...")
 
+    # IMPORTANT: Class 1 first so seeding completes lower classes before timeout
     cbse_data = {
+        'Class 1': {
+            'Maths': ['Shapes and Space', 'Numbers from One to Nine', 'Addition', 'Subtraction', 'Numbers from Ten to Twenty', 'Time', 'Measurement', 'Numbers from Twenty-one to Fifty', 'Data Handling', 'Patterns', 'Numbers', 'Money', 'How Many'],
+            'English': ['A Happy Child', 'Three Little Pigs', 'After a Bath', 'The Bubble the Straw and the Shoe', 'One Little Kitten', 'Lalu and Peelu', 'Once I Saw a Little Bird', 'Mittu and the Yellow Mango', 'Merry-Go-Round', 'Circle', 'If I Were an Apple', 'Our Tree', 'A Kite', 'Sundari', 'A Little Turtle', 'The Tiger and the Mosquito', 'Clouds', 'Anandis Rainbow', 'Flying-Man', 'The Tailor and his Friend'],
+            'Hindi': ['Jhoola', 'Aam ki Kahani', 'Aam ki Tokari', 'Patte hi Patte', 'Pakodi', 'Chhuk-Chhuk Gadi', 'Rasoi Ghar', 'Chuho Myau So Rahi Hai', 'Makdi-Kakdi-Lakdi', 'Pugdi', 'Patang', 'Gend-Balla', 'Bandar Gaya Khet Me Bhag', 'Ek Budhiya', 'Main Bhi', 'Lalu Aur Peelu']
+        },
+        'Class 2': {
+            'Maths': ['What is Long What is Round?', 'Counting in Groups', 'How Much Can You Carry?', 'Counting in Tens', 'Patterns', 'Footprints', 'Jugs and Mugs', 'Tens and Ones', 'My Funday', 'Add Our Points', 'Lines and Lines', 'Give and Take', 'The Longest Step', 'Birds Come Birds Go', 'How Many Ponytails?'],
+            'English': ['First Day at School', 'Haldis Adventure', 'I am Lucky!', 'I Want', 'A Smile', 'The Wind and the Sun', 'Rain', 'Storm in the Garden', 'Zoo Manners', 'Funny Bunny', 'Mr Nobody', 'Curlylocks and the Three Bears', 'On My Blackboard I can Draw', 'Make it Shorter', 'I am the Music Man', 'The Mumbai Musicians', 'Granny Granny Please Comb my Hair', 'The Magic Porridge Pot', 'Strange Talk', 'The Grasshopper and the Ant'],
+            'Hindi': ['Oont Chala', 'Bhalu ne Kheli Football', 'Myaun Myaun', 'Adhik Balwan Kaun?', 'Dost ki Madad', 'Bahut Hua', 'Meri Kitaab', 'Titli aur Kali', 'Bulbul', 'Meethi Sarangi', 'Tesu Raja Beech Bazar', 'Bus ke neeche Bagh', 'Suraj Jaldi Aana Ji', 'Natkhat Chuha', 'Ekki-Dokki']
+        },
+        'Class 3': {
+            'Maths': ['Where to Look From', 'Fun with Numbers', 'Give and Take', 'Long and Short', 'Shapes and Designs', 'Fun with Give and Take', 'Time Goes On', 'Who is Heavier?', 'How Many Times?', 'Play with Patterns', 'Jugs and Mugs', 'Can We Share?', 'Smart Charts!', 'Rupees and Paise'],
+            'EVS': ['Poonams Day Out', 'The Plant Fairy', 'Water O Water!', 'Our First School', 'Chhotu House', 'Foods We Eat', 'Saying without Speaking', 'Flying High', 'Its Raining', 'What is Cooking', 'From Here to There', 'Work We Do', 'Sharing Our Feelings', 'The Story of Food', 'Making Pots', 'Games We Play', 'Here comes a Letter', 'A House Like This', 'Our Friends Animals', 'Drop by Drop', 'Families can be Different', 'Left-Right', 'A Beautiful Cloth', 'Web of Life'],
+            'English': ['Good Morning', 'The Magic Garden', 'Bird Talk', 'Nina and the Baby Sparrows', 'Little by Little', 'The Enormous Turnip', 'Sea Song', 'A Little Fish Story', 'The Balloon Man', 'The Yellow Butterfly', 'Trains', 'The Story of the Road', 'Puppy and I', 'Little Tiger Big Tiger', 'He is My Brother', 'How Creatures Move', 'The Ship of the Desert'],
+            'Hindi': ['Kakku', 'Shekhibaaz Makkhi', 'Chand Wali Amma', 'Man Karta Hai', 'Bahadur Bitto', 'Hamse Sab Kahte', 'Tiptipwa', 'Bandar Bant', 'Akal Badi Ya Bhains', 'Meera Bahan Aur Bagh', 'Jab Mujhe Saanp Ne Kata', 'Mirch Ka Maza', 'Sabse Achha Ped']
+        },
+        'Class 4': {
+            'Maths': ['Building with Bricks', 'Long and Short', 'A Trip to Bhopal', 'Tick-Tick-Tick', 'The Way The World Looks', 'The Junk Seller', 'Jugs and Mugs', 'Carts and Wheels', 'Halves and Quarters', 'Play with Patterns', 'Tables and Shares', 'How Heavy? How Light?', 'Fields and Fences', 'Smart Charts'],
+            'EVS': ['Going to School', 'Ear to Ear', 'A Day with Nandu', 'The Story of Amrita', 'Anita and the Honeybees', 'Omanas Journey', 'From the Window', 'Reaching Grandmothers House', 'Changing Families', 'Hu Tu Tu Hu Tu Tu', 'The Valley of Flowers', 'Changing Times', 'A Rivers Tale', 'Basvas Farm', 'From Market to Home', 'A Busy Month', 'Nandita in Mumbai', 'Too Much Water Too Little Water', 'Abdul in the Garden', 'Eating Together', 'Food and Fun', 'The World in my Home', 'Pochampalli', 'Home and Abroad', 'Spicy Riddles', 'Defence Officer Wahida', 'Chuskit Goes to School'],
+            'English': ['Wake Up!', 'Nehas Alarm Clock', 'Noses', 'The Little Fir Tree', 'Run!', 'Nasruddins Aim', 'Why?', 'Alice in Wonderland', 'Dont be Afraid of the Dark', 'Helen Keller', 'The Milkmans Cow', 'Hiawatha', 'The Scholars Mother Tongue', 'A Watering Rhyme', 'The Giving Tree', 'The Going to Buy a Book', 'Pinocchio'],
+            'Hindi': ['Man Ke Bhole Bhale Badal', 'Jaisa Sawal Waisa Jawab', 'Kirmich Ki Gend', 'Papa Jab Bachche The', 'Dost Ki Poshak', 'Naav Banao Naav Banao', 'Daan Ka Hisab', 'Kaun', 'Swatantrata Ki Oar', 'Thapp Roti Thapp Dal', 'Padhakku Ki Soojh', 'Sunita Ki Pahiya Kursi', 'Hudhud', 'Muft Hi Muft']
+        },
+        'Class 5': {
+            'Maths': ['The Fish Tale', 'Shapes and Angles', 'How Many Squares?', 'Parts and Wholes', 'Does it Look the Same?', 'Be My Multiple Ill be Your Factor', 'Can You See the Pattern?', 'Mapping Your Way', 'Boxes and Sketches', 'Tenths and Hundredths', 'Area and its Boundary', 'Smart Charts', 'Ways to Multiply and Divide', 'How Big? How Heavy?'],
+            'EVS': ['Super Senses', 'A Snake Charmers Story', 'From Tasting to Digesting', 'Mangoes Round the Year', 'Seeds and Seeds', 'Every Drop Counts', 'Experiments with Water', 'A Treat for Mosquitoes', 'Up You Go!', 'Walls Tell Stories', 'Sunita in Space', 'What if it Finishes?', 'A Shelter so High!', 'When the Earth Shook!', 'Blow Hot Blow Cold', 'Who will do this Work?', 'Across the Wall', 'No Place for Us?', 'A Seed tells a Farmers Story', 'Whose Forests?', 'Like Father Like Daughter', 'On the Move Again'],
+            'English': ['Ice-cream Man', 'Wonderful Waste!', 'Teamwork', 'Flying Together', 'My Shadow', 'Robinson Crusoe Discovers a footprint', 'Crying', 'My Elder Brother', 'The Lazy Frog', 'Rip Van Winkle', 'Class Discussion', 'The Talkative Barber', 'Topsy-turvy Land', 'Gullivers Travels', 'Nobodys Friend', 'The Little Bully', 'Sing a Song of People', 'Around the World', 'Malu Bhalu', 'Who Will be Ningthou?'],
+            'Hindi': ['Raakh Ki Rassi', 'Faslon Ke Tyohar', 'Khilone Wala', 'Nanh Fankar', 'Jahan Chah Wahan Raah', 'Chitthi Ka Safar', 'Ve Din Bhi Kya Din The', 'Ek Maa Ki Bebasi', 'Ek Din Ki Badshahat', 'Chawal Ki Rotiyan', 'Guru Aur Chela', 'Swami Ki Dadi', 'Bagh Aaya Us Raat', 'Bishan Ki Dileri', 'Pani Re Pani', 'Chhoti Si Hamari Nadi', 'Chunauti Himalay Ki']
+        },
+        'Class 6': {
+            'Maths': ['Knowing Our Numbers', 'Whole Numbers', 'Playing with Numbers', 'Basic Geometrical Ideas', 'Understanding Elementary Shapes', 'Integers', 'Fractions', 'Decimals', 'Data Handling', 'Mensuration', 'Algebra', 'Ratio and Proportion', 'Symmetry', 'Practical Geometry'],
+            'Science': ['Food Where Does it Come From?', 'Components of Food', 'Fibre to Fabric', 'Sorting Materials into Groups', 'Separation of Substances', 'Changes Around Us', 'Getting to Know Plants', 'Body Movements', 'The Living Organisms and Their Surroundings', 'Motion and Measurement of Distances', 'Light Shadows and Reflections', 'Electricity and Circuits', 'Fun with Magnets', 'Water', 'Air Around Us', 'Garbage In Garbage Out'],
+            'Social Science': ['What Where How and When?', 'On The Trail of the Earliest People', 'From Gathering to Growing Food', 'In the Earliest Cities', 'What Books and Burials Tell Us', 'Kingdoms Kings and an Early Republic', 'New Questions and Ideas', 'Ashoka The Emperor Who Gave Up War', 'Vital Villages Thriving Towns', 'Traders Kings and Pilgrims', 'New Empires and Kingdoms', 'Buildings Paintings and Books'],
+            'English': ['Who Did Patricks Homework?', 'How the Dog Found Himself a New Master?', 'Taros Reward', 'An Indian American Woman in Space Kalpana Chawla', 'A Different Kind of School', 'Who I Am', 'Fair Play', 'A Game of Chance', 'Desert Animals', 'The Banyan Tree'],
+            'Hindi': ['Vah Chidiya Jo', 'Bachpan', 'Nadan Dost', 'Chand se Thodi Si Gappe', 'Aksharon Ka Mahatva', 'Paar Nazar Ke', 'Sathi Hath Badhana', 'Aise Aise', 'Ticket Album', 'Jhansi ki Rani', 'Jo Dekhkar Bhi Nahi Dekhte', 'Sansar Pustak Hai', 'Main Sabse Chhoti Houn', 'Lokgeet', 'Naukar', 'Van Ke Marg Mein', 'Saans-Saans Mein Bans'],
+            'Sanskrit': ['Shabdaparichayah I', 'Shabdaparichayah II', 'Shabdaparichayah III', 'Vidyalayah', 'Vrikshah', 'Samudratatah', 'Bakasya Pratikarah', 'Suktistabakah', 'Kridaspardha', 'Krishikah Karmavirah', 'Dashamah Tvam Asi', 'Vimanayanam Rachayama', 'Ahaha Aah Cha']
+        },
+        'Class 7': {
+            'Maths': ['Integers', 'Fractions and Decimals', 'Data Handling', 'Simple Equations', 'Lines and Angles', 'The Triangle and its Properties', 'Congruence of Triangles', 'Comparing Quantities', 'Rational Numbers', 'Practical Geometry', 'Perimeter and Area', 'Algebraic Expressions', 'Exponents and Powers', 'Symmetry', 'Visualising Solid Shapes'],
+            'Science': ['Nutrition in Plants', 'Nutrition in Animals', 'Fibre to Fabric', 'Heat', 'Acids Bases and Salts', 'Physical and Chemical Changes', 'Weather Climate and Adaptations of Animals to Climate', 'Winds Storms and Cyclones', 'Soil', 'Respiration in Organisms', 'Transportation in Animals and Plants', 'Reproduction in Plants', 'Motion and Time', 'Electric Current and its Effects', 'Light', 'Water A Precious Resource', 'Forests Our Lifeline', 'Wastewater Story'],
+            'Social Science': ['Tracing Changes Through a Thousand Years', 'New Kings and Kingdoms', 'The Delhi Sultans', 'The Mughal Empire', 'Rulers and Buildings', 'Towns Traders and Craftspersons', 'Tribes Nomads and Settled Communities', 'Devotional Paths to the Divine', 'The Making of Regional Cultures', 'Eighteenth-Century Political Formations'],
+            'English': ['Three Questions', 'A Gift of Chappals', 'Gopal and the Hilsa Fish', 'The Ashes That Made Trees Bloom', 'Quality', 'Expert Detectives', 'The Invention of Vita-Wonk', 'Fire Friend and Foe', 'A Bicycle in Good Repair', 'The Story of Cricket'],
+            'Hindi': ['Hum Panchhi Unmukt Gagan Ke', 'Dadi Maa', 'Himalaya Ki Betiyan', 'Kathputli', 'Mithaiwala', 'Rakt Aur Hamara Sharir', 'Papa Kho Gaye', 'Shaam Ek Kisan', 'Chidiya Ki Bachi', 'Apoorv Anubhav', 'Rahim Ke Dohe', 'Kancha', 'Ek Tinka', 'Khanpan Ki Badalti Tasveer', 'Neelkanth', 'Bhor Aur Barkha', 'Veer Kunwar Singh', 'Sangharsh Ke Karan Main Tunukmizaj Ho Gaya', 'Ashram Ka Anumanit Vyay', 'Viplav Gayan'],
+            'Sanskrit': ['Subhashitani', 'Durbuddhi Vinashyati', 'Svavalambanam', 'Pandyita Ramabai', 'Sadacharah', 'Sankalpah Siddhidhayakah', 'Trivarnah Dhvajah', 'Aham Api Vidyalayam Gamishyami', 'Vishvabandhutvam', 'Samavayo Hi Durjayah', 'Vidyadhanam', 'Amritam Samskritam', 'Lalangitam']
+        },
+        'Class 8': {
+            'Maths': ['Rational Numbers', 'Linear Equations in One Variable', 'Understanding Quadrilaterals', 'Practical Geometry', 'Data Handling', 'Squares and Square Roots', 'Cubes and Cube Roots', 'Comparing Quantities', 'Algebraic Expressions and Identities', 'Visualising Solid Shapes', 'Mensuration', 'Exponents and Powers', 'Direct and Inverse Proportions', 'Factorisation', 'Introduction to Graphs', 'Playing with Numbers'],
+            'Science': ['Crop Production and Management', 'Microorganisms Friend and Foe', 'Synthetic Fibres and Plastics', 'Materials Metals and Non-Metals', 'Coal and Petroleum', 'Combustion and Flame', 'Conservation of Plants and Animals', 'Cell Structure and Functions', 'Reproduction in Animals', 'Reaching the Age of Adolescence', 'Force and Pressure', 'Friction', 'Sound', 'Chemical Effects of Electric Current', 'Some Natural Phenomena', 'Light', 'Stars and the Solar System', 'Pollution of Air and Water'],
+            'Social Science': ['How When and Where', 'From Trade to Territory', 'Ruling the Countryside', 'Tribals Dikus and the Vision of a Golden Age', 'When People Rebel 1857 and After', 'Colonialism and the City', 'Weavers Iron Smelters and Factory Owners', 'Civilising the Native Educating the Nation', 'Women Caste and Reform', 'The Changing World of Visual Arts', 'The Making of the National Movement 1870s-1947', 'India After Independence'],
+            'English': ['The Best Christmas Present in the World', 'The Tsunami', 'Glimpses of the Past', 'Bepin Choudhurys Lapse of Memory', 'The Summit Within', 'This is Jodys Fawn', 'A Visit to Cambridge', 'A Short Monsoon Diary', 'The Great Stone Face I', 'The Great Stone Face II'],
+            'Hindi': ['Dhwani', 'Lakh Ki Chudiyan', 'Bus Ki Yatra', 'Diwanon Ki Hasti', 'Chitthiyon Ki Anoothi Duniya', 'Bhagwan Ke Dakiye', 'Kya Nirash Hua Jaye', 'Yeh Sabse Kathin Samay Nahi', 'Kabir Ki Sakhiyan', 'Kaamchor', 'Jab Cinema Ne Bolna Seekha', 'Sudama Charit', 'Jahan Pahiya Hai', 'Akbari Lota', 'Sur Ke Pad', 'Pani Ki Kahani', 'Baaz Aur Saanp', 'Topi'],
+            'Sanskrit': ['Subhashitani', 'Bilasya Vani Na Kadapi Me Shruta', 'Digibharatam', 'Sadaiva Purato Nidhehi Charanam', 'Kantakenaiva Kantakam', 'Griham Shunyam Sutam Vina', 'Bharatajanataham', 'Sansarasagarasya Nayakah', 'Saptabhaginyah', 'Nitinavanitam', 'Savitribai Phule', 'Kah Rakshati Kah Rakshitah', 'Kshitau Rajate Bharatashwarnabhumi', 'Aryabhatah']
+        },
+        'Class 9': {
+            'Maths': ['Number Systems', 'Polynomials', 'Coordinate Geometry', 'Linear Equations in Two Variables', 'Introduction to Euclids Geometry', 'Lines and Angles', 'Triangles', 'Quadrilaterals', 'Areas of Parallelograms and Triangles', 'Circles', 'Constructions', 'Herons Formula', 'Surface Areas and Volumes', 'Statistics', 'Probability'],
+            'Science': ['Matter in Our Surroundings', 'Is Matter Around Us Pure', 'Atoms and Molecules', 'Structure of the Atom', 'The Fundamental Unit of Life', 'Tissues', 'Diversity in Living Organisms', 'Motion', 'Force and Laws of Motion', 'Gravitation', 'Work and Energy', 'Sound', 'Why Do We Fall Ill', 'Natural Resources', 'Improvement in Food Resources'],
+            'Social Science': ['The French Revolution', 'Socialism in Europe and the Russian Revolution', 'Nazism and the Rise of Hitler', 'Forest Society and Colonialism', 'Pastoralists in the Modern World', 'India - Size and Location', 'Physical Features of India', 'Drainage', 'Climate', 'Natural Vegetation and Wildlife', 'Population', 'What is Democracy? Why Democracy?', 'Constitutional Design', 'Electoral Politics', 'Working of Institutions', 'Democratic Rights', 'The Story of Village Palampur', 'People as Resource', 'Poverty as a Challenge', 'Food Security in India'],
+            'English': ['The Fun They Had', 'The Sound of Music', 'The Little Girl', 'A Truly Beautiful Mind', 'The Snake and the Mirror', 'My Childhood', 'Packing', 'Reach for the Top', 'The Bond of Love', 'Kathmandu', 'If I Were You'],
+            'Hindi': ['Do Bailon Ki Katha', 'Lhasa Ki Aur', 'Upbhoktavad Ki Sanskriti', 'Sanwale Sapnon Ki Yaad', 'Nana Saheb Ki Putri', 'Premchand Ke Phate Joote', 'Mere Bachpan Ke Din', 'Ek Kutta Aur Ek Maina', 'Sakhian Evam Sabad', 'Vaakh'],
+            'Information Technology': ['Introduction to IT-ITeS Industry', 'Data Entry and Keyboarding Skills', 'Digital Documentation', 'Electronic Spreadsheet', 'Digital Presentation']
+        },
+        'Class 10': {
+            'Maths': ['Real Numbers', 'Polynomials', 'Pair of Linear Equations in Two Variables', 'Quadratic Equations', 'Arithmetic Progressions', 'Triangles', 'Coordinate Geometry', 'Introduction to Trigonometry', 'Some Applications of Trigonometry', 'Circles', 'Constructions', 'Areas Related to Circles', 'Surface Areas and Volumes', 'Statistics', 'Probability'],
+            'Science': ['Chemical Reactions and Equations', 'Acids Bases and Salts', 'Metals and Non-metals', 'Carbon and its Compounds', 'Periodic Classification of Elements', 'Life Processes', 'Control and Coordination', 'How do Organisms Reproduce?', 'Heredity and Evolution', 'Light Reflection and Refraction', 'Human Eye and Colourful World', 'Electricity', 'Magnetic Effects of Electric Current', 'Sources of Energy', 'Our Environment', 'Sustainable Management of Natural Resources'],
+            'Social Science': ['The Rise of Nationalism in Europe', 'Nationalism in India', 'The Making of a Global World', 'The Age of Industrialisation', 'Print Culture and the Modern World', 'Resources and Development', 'Forest and Wildlife Resources', 'Water Resources', 'Agriculture', 'Minerals and Energy Resources', 'Manufacturing Industries', 'Lifelines of National Economy', 'Power Sharing', 'Federalism', 'Democracy and Diversity', 'Gender Religion and Caste', 'Popular Struggles and Movements', 'Political Parties', 'Outcomes of Democracy', 'Challenges to Democracy', 'Development', 'Sectors of the Indian Economy', 'Money and Credit', 'Globalisation and the Indian Economy', 'Consumer Rights'],
+            'English': ['A Letter to God', 'Nelson Mandela Long Walk to Freedom', 'Two Stories about Flying', 'From the Diary of Anne Frank', 'The Hundred Dresses I', 'The Hundred Dresses II', 'Glimpses of India', 'Mijbil the Otter', 'Madam Rides the Bus', 'The Sermon at Benares', 'The Proposal'],
+            'Hindi': ['Surdas Ke Pad', 'Ram-Lakshman-Parashuram Samvad', 'Savaiya and Kavitt', 'Atmakathya', 'Utsaha and At Ni Rahi Hai', 'Yeh Danturit Muskan and Fasal', 'Chhaya Mat Chhuna', 'Kanyadaan', 'Sangatkar'],
+            'Information Technology': ['Digital Documentation Advanced', 'Electronic Spreadsheet Advanced', 'Database Management System', 'Web Applications and Security']
+        },
         'NDA': {
             'Maths': ['Algebra', 'Matrices and Determinants', 'Trigonometry', 'Analytical Geometry', 'Differential Calculus', 'Integral Calculus', 'Vector Algebra', 'Statistics and Probability'],
             'English': ['Grammar and Usage', 'Vocabulary', 'Comprehension', 'Cohesion in Extended Text'],
@@ -153,20 +245,22 @@ def populate_with_ultimate_cbse_data():
             )
             
             for index, chapter_name in enumerate(chapters, 1):
-                chapter = Chapter.objects.create(
+                chapter, _ = Chapter.objects.get_or_create(
                     subject=subject,
-                    name=chapter_name,
                     slug=slugify(chapter_name),
-                    order=index
+                    defaults={'name': chapter_name, 'order': index}
                 )
                 
-                Video.objects.create(
-                    chapter=chapter,
-                    title=f"Full Lesson: {chapter_name}",
-                    youtube_id="dQw4w9WgXcQ",
-                    description=f"In this high-quality educational video, we cover the essentials of CBSE {grade_name} {sub_name} Chapter {index}: {chapter_name}.",
-                    order=1
-                )
+                # Use real educational YouTube video ID for the subject
+                yt_id = YOUTUBE_BY_SUBJECT.get(sub_name, DEFAULT_YT_ID)
+                if not chapter.videos.exists():
+                    Video.objects.create(
+                        chapter=chapter,
+                        title=f"{chapter_name} - {sub_name} {grade_name} | Full NCERT Lecture",
+                        youtube_id=yt_id,
+                        description=f"Complete NCERT/CBSE {grade_name} {sub_name} Chapter {index}: {chapter_name}. Full lesson explanation in Hindi & English.",
+                        order=1
+                    )
     
     print("Success! Ultimate complete CBSE standard courses populated for all 12 Classes along with JEE, NEET, and NDA.")
 

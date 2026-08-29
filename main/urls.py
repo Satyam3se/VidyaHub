@@ -86,4 +86,5 @@ urlpatterns = [
     
     # One-click Database Seeding Endpoint
     path('seed-database/', views.seed_database_view, name='seed_database'),
+    path('seed-status/', views.seed_status_view, name='seed_status'),
 ]
